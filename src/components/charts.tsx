@@ -51,9 +51,27 @@ function fmtAxisTick(n: number): string {
 
 type GrowthBarDatum = { label: string; initial: number; deposits: number; interest: number }
 
-const MONTH_NAMES = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+const MONTH_NAMES = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
 
-function stepLabel(step: number, useYearly: boolean, startYear: number, startMonth: number): string {
+function stepLabel(
+  step: number,
+  useYearly: boolean,
+  startYear: number,
+  startMonth: number
+): string {
   if (useYearly) {
     return String(startYear + step)
   }
@@ -66,7 +84,7 @@ function buildGrowthSteps(
   monthlyContribution: number,
   annualRate: number,
   target: number,
-  startDate?: string,
+  startDate?: string
 ): { data: GrowthBarDatum[]; useYearly: boolean } {
   const rm = annualRate / 12 / 100
 
@@ -75,7 +93,10 @@ function buildGrowthSteps(
     let bal = initialBalance
     for (let n = 1; n <= 1200; n++) {
       bal = bal * (1 + rm) + monthlyContribution
-      if (bal >= target) { monthsNeeded = n; break }
+      if (bal >= target) {
+        monthsNeeded = n
+        break
+      }
     }
     if (monthsNeeded === 0) monthsNeeded = 120
   } else if (target <= 0 && (monthlyContribution > 0 || annualRate > 0)) {
@@ -131,7 +152,11 @@ function buildGrowthSteps(
   return { data, useYearly }
 }
 
-const GROWTH_LABELS: Record<string, string> = { initial: 'Initial', deposits: 'Deposits', interest: 'Interest' }
+const GROWTH_LABELS: Record<string, string> = {
+  initial: 'Initial',
+  deposits: 'Deposits',
+  interest: 'Interest',
+}
 
 type GrowthTooltipPayload = { name: string; value: number; fill: string }
 
@@ -145,24 +170,30 @@ function GrowthTooltip({
   label?: string
 }) {
   if (!active || !payload?.length) return null
-  const nonZero = payload.filter(p => p.value > 0)
+  const nonZero = payload.filter((p) => p.value > 0)
   const total = payload.reduce((s, p) => s + p.value, 0)
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
       <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
-      {nonZero.map(p => (
+      {nonZero.map((p) => (
         <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
           <div className="flex items-center gap-1.5">
             <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
-            <span className="text-gray-500 dark:text-gray-400">{GROWTH_LABELS[p.name] ?? p.name}</span>
+            <span className="text-gray-500 dark:text-gray-400">
+              {GROWTH_LABELS[p.name] ?? p.name}
+            </span>
           </div>
-          <span className="text-gray-700 dark:text-gray-200 tabular-nums">{fmtAmount(p.value)}</span>
+          <span className="text-gray-700 dark:text-gray-200 tabular-nums">
+            {fmtAmount(p.value)}
+          </span>
         </div>
       ))}
       {nonZero.length > 1 && (
         <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
           <span className="font-medium text-gray-700 dark:text-gray-200">Total</span>
-          <span className="font-medium text-gray-700 dark:text-gray-200 tabular-nums">{fmtAmount(total)}</span>
+          <span className="font-medium text-gray-700 dark:text-gray-200 tabular-nums">
+            {fmtAmount(total)}
+          </span>
         </div>
       )}
     </div>
@@ -186,14 +217,17 @@ export function GrowthBarChart({
 }) {
   const { data } = useMemo(
     () => buildGrowthSteps(initialBalance, monthlyContribution, annualRate, target ?? 0, startDate),
-    [initialBalance, monthlyContribution, annualRate, target, startDate],
+    [initialBalance, monthlyContribution, annualRate, target, startDate]
   )
 
   const tickInterval =
-    data.length <= 12 ? 0
-    : data.length <= 24 ? 1
-    : data.length <= 36 ? 2
-    : Math.floor(data.length / 10)
+    data.length <= 12
+      ? 0
+      : data.length <= 24
+        ? 1
+        : data.length <= 36
+          ? 2
+          : Math.floor(data.length / 10)
 
   if (data.length === 0) {
     return (
@@ -241,6 +275,101 @@ export function GrowthBarChart({
   )
 }
 
+// ─── Funds Bar Chart ─────────────────────────────────────────────────────────
+
+type FundsDatum = { name: string; saved: number; remaining: number; color: string; total: number }
+
+type FundsTooltipProps = {
+  active?: boolean
+  payload?: { payload: FundsDatum }[]
+  label?: string
+}
+
+function FundsTooltip({ active, payload, label }: FundsTooltipProps) {
+  if (!active || !payload?.length) return null
+  const d = payload[0].payload
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
+      <div className="flex items-center gap-1.5 mb-1.5">
+        <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: d.color }} />
+        <p className="font-medium text-gray-700 dark:text-gray-200">{label}</p>
+      </div>
+      <div className="flex justify-between gap-4 mb-0.5">
+        <span className="text-gray-500 dark:text-gray-400">Saved</span>
+        <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmtAmount(d.saved)}</span>
+      </div>
+      <div className="flex justify-between gap-4">
+        <span className="text-gray-500 dark:text-gray-400">Goal</span>
+        <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmtAmount(d.total)}</span>
+      </div>
+      <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
+        <span className="font-medium text-gray-500 dark:text-gray-400">Progress</span>
+        <span className="font-medium tabular-nums text-gray-700 dark:text-gray-200">
+          {d.total > 0 ? `${((d.saved / d.total) * 100).toFixed(1)}%` : '—'}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+export function FundsBarChart({
+  funds,
+  height = 220,
+}: {
+  funds: { name: string; goal: number; saved: number; color: string }[]
+  height?: number | `${number}%`
+}) {
+  const data: FundsDatum[] = funds.map((f) => ({
+    name: f.name,
+    saved: Math.min(f.saved, f.goal),
+    remaining: Math.max(f.goal - f.saved, 0),
+    color: f.color,
+    total: f.goal,
+  }))
+
+  if (data.length === 0) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <p className="text-xs text-gray-400 dark:text-gray-600">
+          Add funds with a goal to see chart
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="35%">
+        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          angle={-35}
+          textAnchor="end"
+          interval={0}
+          height={50}
+        />
+        <YAxis
+          tickFormatter={fmtAxisTick}
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          width={48}
+        />
+        <Tooltip content={<FundsTooltip />} cursor={false} />
+        <Bar dataKey="saved" stackId="s">
+          {data.map((d, i) => (
+            <Cell key={i} fill={d.color} />
+          ))}
+        </Bar>
+        <Bar dataKey="remaining" stackId="s" fill="#e2e8f0" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 // ─── Donut Chart ─────────────────────────────────────────────────────────────
 
 export function DonutChart({
@@ -275,7 +404,7 @@ export function DonutChart({
           outerRadius="80%"
           strokeWidth={0}
         >
-          {segments.map(s => (
+          {segments.map((s) => (
             <Cell key={s.label} fill={s.color} />
           ))}
         </Pie>

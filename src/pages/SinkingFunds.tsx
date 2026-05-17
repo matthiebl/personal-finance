@@ -1,109 +1,379 @@
-const PLACEHOLDER_FUNDS = [
-  { name: 'Car Maintenance', target: '$—', saved: '$—', monthly: '$—', remaining: '$—', date: '—', pct: 0 },
-  { name: 'Holiday / Travel', target: '$—', saved: '$—', monthly: '$—', remaining: '$—', date: '—', pct: 0 },
-  { name: 'Home Repairs', target: '$—', saved: '$—', monthly: '$—', remaining: '$—', date: '—', pct: 0 },
-  { name: 'New Laptop', target: '$—', saved: '$—', monthly: '$—', remaining: '$—', date: '—', pct: 0 },
-  { name: 'Wedding / Event', target: '$—', saved: '$—', monthly: '$—', remaining: '$—', date: '—', pct: 0 },
+import { useMemo, useState } from 'react'
+import { DonutChart, FundsBarChart, GrowthBarChart } from '../components/charts'
+import { HeroStats } from '../components/hero'
+import { CurrencyInput, SuffixInput, TextInput } from '../components/inputs'
+
+const FUND_COLORS = [
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
+  '#f97316',
+  '#10b981',
+  '#14b8a6',
+  '#06b6d4',
+  '#22c55e',
+  '#94a3b8',
 ]
 
+type FundRow = {
+  id: string
+  name: string
+  goal: string
+  saved: string
+  monthly: string
+  interestRate: string
+}
+
+let _seq = 0
+const uid = () => String(++_seq)
+const makeRow = (): FundRow => ({
+  id: uid(),
+  name: '',
+  goal: '',
+  saved: '',
+  monthly: '',
+  interestRate: '',
+})
+
+function calcMonthsToGoal(
+  saved: number,
+  goal: number,
+  monthly: number,
+  annualRate: number
+): number | null {
+  if (goal <= 0 || saved >= goal) return null
+  if (monthly <= 0 && annualRate <= 0) return null
+  const rm = annualRate / 12 / 100
+  let bal = saved
+  for (let n = 1; n <= 1200; n++) {
+    bal = bal * (1 + rm) + monthly
+    if (bal >= goal) return n
+  }
+  return null
+}
+
+function fmt(n: number): string {
+  const abs = Math.abs(Math.round(n))
+  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-US')
+}
+
 export default function SinkingFunds() {
+  const [rows, setRows] = useState<FundRow[]>(() => Array.from({ length: 10 }, makeRow))
+  const [selectedFundId, setSelectedFundId] = useState('')
+  const [startDate] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  })
+
+  const fundData = useMemo(
+    () =>
+      rows.map((r, i) => {
+        const goalNum = parseFloat(r.goal) || 0
+        const savedNum = parseFloat(r.saved) || 0
+        const monthlyNum = parseFloat(r.monthly) || 0
+        const rateNum = parseFloat(r.interestRate) || 0
+        const progress = goalNum > 0 ? Math.min((savedNum / goalNum) * 100, 100) : 0
+        const monthsLeft = calcMonthsToGoal(savedNum, goalNum, monthlyNum, rateNum)
+        return {
+          ...r,
+          goalNum,
+          savedNum,
+          monthlyNum,
+          rateNum,
+          progress,
+          monthsLeft,
+          color: FUND_COLORS[i % FUND_COLORS.length],
+        }
+      }),
+    [rows]
+  )
+
+  const totalGoal = useMemo(() => fundData.reduce((s, r) => s + r.goalNum, 0), [fundData])
+  const totalSaved = useMemo(() => fundData.reduce((s, r) => s + r.savedNum, 0), [fundData])
+  const overallProgress = totalGoal > 0 ? Math.min((totalSaved / totalGoal) * 100, 100) : 0
+
+  const pieSegments = fundData
+    .filter((r) => r.goalNum > 0)
+    .map((r) => ({ label: r.name || 'Unnamed', value: r.goalNum, color: r.color }))
+
+  const chartFunds = fundData
+    .filter((r) => r.goalNum > 0)
+    .map((r) => ({ name: r.name || 'Unnamed', goal: r.goalNum, saved: r.savedNum, color: r.color }))
+
+  const update = (id: string, field: keyof FundRow, value: string) =>
+    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)))
+
+  const addRow = () => setRows((prev) => [...prev, makeRow()])
+  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id))
+
+  const fundsWithGoal = fundData.filter((r) => r.goalNum > 0)
+  const selectedFund =
+    fundsWithGoal.find((r) => r.id === selectedFundId) ?? fundsWithGoal[0] ?? null
+
+  const progressBarColor =
+    overallProgress >= 100
+      ? 'bg-green-500 dark:bg-green-400'
+      : overallProgress >= 50
+        ? 'bg-amber-500 dark:bg-amber-400'
+        : 'bg-blue-500 dark:bg-blue-400'
+
   return (
-    <div>
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">Sinking Funds</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Plan and track savings for known future expenses.
+    <div className="max-w-7xl">
+      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
+        <h1 className="text-2xl font-bold mb-1">Sinking Funds</h1>
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          Plan and track savings for known future expenses.
+        </p>
+      </div>
+
+      {/* Hero stats */}
+      <HeroStats
+        stats={[
+          { label: 'Total Funds Goal', value: totalGoal > 0 ? fmt(totalGoal) : '$—' },
+          { label: 'Total Saved', value: totalSaved > 0 ? fmt(totalSaved) : '$—' },
+          {
+            label: 'Overall Progress',
+            value: totalGoal > 0 ? `${overallProgress.toFixed(1)}%` : '—%',
+            progress: { pct: overallProgress, colorClass: progressBarColor },
+          },
+        ]}
+      />
+
+      {/* Charts */}
+      <div className="grid grid-cols-2 gap-6 mb-8">
+        <div className="flex flex-col">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+            Fund Breakdown
           </p>
-        </div>
-        <button className="border border-gray-300 dark:border-gray-700 text-sm px-4 py-1.5 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-          + Add Fund
-        </button>
-      </div>
-
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Active Funds', value: '—' },
-          { label: 'Total Saved', value: '$—' },
-          { label: 'Monthly Commitment', value: '$—' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-5 py-4"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{s.label}</p>
-            <p className="text-2xl font-semibold tabular-nums">{s.value}</p>
-          </div>
-        ))}
-      </div>
-
-      <table className="w-full text-sm border-collapse">
-        <thead>
-          <tr className="border-b border-gray-200 dark:border-gray-800">
-            <th className="text-left py-2 pr-4 font-medium text-gray-500 dark:text-gray-400">
-              Fund Name
-            </th>
-            <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
-              Target
-            </th>
-            <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
-              Saved
-            </th>
-            <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
-              Monthly
-            </th>
-            <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
-              Remaining
-            </th>
-            <th className="text-center py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
-              Target Date
-            </th>
-            <th className="text-left py-2 pl-3 font-medium text-gray-500 dark:text-gray-400 w-36">
-              Progress
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {PLACEHOLDER_FUNDS.map((fund) => (
-            <tr
-              key={fund.name}
-              className="border-b border-gray-100 dark:border-gray-800/60 even:bg-gray-50/50 dark:even:bg-gray-900/30"
-            >
-              <td className="py-2.5 pr-4 font-medium text-gray-700 dark:text-gray-300">
-                {fund.name}
-              </td>
-              <td className="py-2.5 px-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                {fund.target}
-              </td>
-              <td className="py-2.5 px-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                {fund.saved}
-              </td>
-              <td className="py-2.5 px-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                {fund.monthly}
-              </td>
-              <td className="py-2.5 px-3 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                {fund.remaining}
-              </td>
-              <td className="py-2.5 px-3 text-center text-gray-500 dark:text-gray-400">
-                {fund.date}
-              </td>
-              <td className="py-2.5 pl-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 dark:bg-blue-400 rounded-full"
-                      style={{ width: `${fund.pct}%` }}
-                    />
+          <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex gap-6 items-center">
+            <div className="shrink-0 w-44">
+              <DonutChart segments={pieSegments} emptyMessage="Add funds to see breakdown" />
+            </div>
+            {pieSegments.length > 0 ? (
+              <div className="flex-1 space-y-1.5 min-w-0">
+                {pieSegments.map((s) => (
+                  <div key={s.label} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span
+                        className="w-2 h-2 rounded-sm shrink-0"
+                        style={{ backgroundColor: s.color }}
+                      />
+                      <span className="text-gray-600 dark:text-gray-400 truncate">{s.label}</span>
+                    </div>
+                    <span className="text-gray-500 dark:text-gray-400 tabular-nums ml-2 shrink-0">
+                      {totalGoal > 0 ? `${((s.value / totalGoal) * 100).toFixed(0)}%` : '—'}
+                    </span>
                   </div>
-                  <span className="text-xs tabular-nums text-gray-400 dark:text-gray-600 w-8 text-right">
-                    {fund.pct}%
-                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-gray-400 dark:text-gray-600">
+                Enter funds with goals to see breakdown
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="flex flex-col">
+          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+            Saved vs Goal
+          </p>
+          <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex flex-col">
+            <div className="flex items-center gap-4 mb-3 shrink-0">
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#6366f1' }} />
+                Saved
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <span className="w-2.5 h-2.5 rounded-sm bg-slate-200 dark:bg-slate-700" />
+                Remaining
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <FundsBarChart funds={chartFunds} height="100%" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Funds table */}
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+          Sinking Funds
+        </p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
+          <table className="w-full text-sm border-collapse">
+            <thead>
+              <tr className="border-b border-gray-200 dark:border-gray-800">
+                <th className="py-2 pl-4 w-8" />
+                <th className="text-left py-2 px-2 font-medium text-gray-500 dark:text-gray-400">
+                  Fund Name
+                </th>
+                <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-36">
+                  Goal Amount
+                </th>
+                <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-36">
+                  Saved
+                </th>
+                <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-36">
+                  Monthly
+                </th>
+                <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-28">
+                  Interest Rate
+                </th>
+                <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-24">
+                  Months Left
+                </th>
+                <th className="text-left py-2 pl-2 pr-4 font-medium text-gray-500 dark:text-gray-400 w-44">
+                  Progress
+                </th>
+                <th className="w-8 pr-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {fundData.map((fund) => (
+                <tr
+                  key={fund.id}
+                  className="border-b border-gray-100 dark:border-gray-800/60 even:bg-gray-50/50 dark:even:bg-gray-900/30"
+                >
+                  <td className="py-1.5 pl-4 pr-2">
+                    <span
+                      className="block w-2 h-2 rounded-sm mt-0.5"
+                      style={{ backgroundColor: fund.goalNum > 0 ? fund.color : '#d1d5db' }}
+                    />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <TextInput
+                      compact
+                      value={fund.name}
+                      onChange={(v) => update(fund.id, 'name', v)}
+                      placeholder="Fund name"
+                    />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <CurrencyInput
+                      compact
+                      value={fund.goal}
+                      onChange={(v) => update(fund.id, 'goal', v)}
+                    />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <CurrencyInput
+                      compact
+                      value={fund.saved}
+                      onChange={(v) => update(fund.id, 'saved', v)}
+                    />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <CurrencyInput
+                      compact
+                      value={fund.monthly}
+                      onChange={(v) => update(fund.id, 'monthly', v)}
+                    />
+                  </td>
+                  <td className="py-1.5 px-2">
+                    <SuffixInput
+                      compact
+                      value={fund.interestRate}
+                      onChange={(v) => update(fund.id, 'interestRate', v)}
+                      suffix="%"
+                      placeholder="0.00"
+                    />
+                  </td>
+                  <td className="py-1.5 px-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
+                    {fund.monthsLeft !== null ? `${fund.monthsLeft} mo` : '—'}
+                  </td>
+                  <td className="py-1.5 pl-2 pr-4">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-1.5 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{
+                            width: `${fund.progress}%`,
+                            backgroundColor: fund.goalNum > 0 ? fund.color : 'transparent',
+                          }}
+                        />
+                      </div>
+                      <span className="text-xs tabular-nums text-gray-400 dark:text-gray-600 w-10 text-right shrink-0">
+                        {fund.goalNum > 0 ? `${Math.round(fund.progress)}%` : '—'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="py-1.5 pr-3 text-center">
+                    <button
+                      onClick={() => removeRow(fund.id)}
+                      className="text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-500 transition-colors text-base leading-none"
+                      aria-label="Remove fund"
+                    >
+                      ×
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <div className="px-4 py-2.5 border-t border-gray-100 dark:border-gray-800/60">
+            <button
+              onClick={addRow}
+              className="text-xs text-gray-400 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-400 transition-colors"
+            >
+              + Add Fund
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Growth Projection */}
+      <div className="mt-8">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
+          Growth Projection
+        </p>
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-4">
+              {[
+                { label: 'Initial', color: '#6366f1' },
+                { label: 'Deposits', color: '#8b5cf6' },
+                { label: 'Interest', color: '#10b981' },
+              ].map((l) => (
+                <div key={l.label} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: l.color }} />
+                  {l.label}
                 </div>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+              ))}
+            </div>
+            {fundsWithGoal.length > 0 && (
+              <select
+                value={selectedFund?.id ?? ''}
+                onChange={(e) => setSelectedFundId(e.target.value)}
+                className="border border-gray-300 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
+              >
+                {fundsWithGoal.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.name || 'Unnamed Fund'}
+                  </option>
+                ))}
+              </select>
+            )}
+          </div>
+          {selectedFund ? (
+            <GrowthBarChart
+              initialBalance={selectedFund.savedNum}
+              monthlyContribution={selectedFund.monthlyNum}
+              annualRate={selectedFund.rateNum}
+              target={selectedFund.goalNum}
+              startDate={startDate}
+            />
+          ) : (
+            <GrowthBarChart
+              initialBalance={0}
+              monthlyContribution={0}
+              annualRate={0}
+            />
+          )}
+        </div>
+      </div>
     </div>
   )
 }

@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
 import { DonutChart, GrowthBarChart } from '../components/charts'
+import { HeroStats } from '../components/hero'
 import { CurrencyInput, SuffixInput } from '../components/inputs'
-import { DataTable } from '../components/table'
 import type { DataTableColumn } from '../components/table'
+import { DataTable } from '../components/table'
 
 const EXPENSE_ROWS = [
   { label: 'Rent / Mortgage', color: '#6366f1' },
@@ -41,7 +42,6 @@ function calcMonthsToGoal(
   return null
 }
 
-
 export default function EmergencyFund() {
   const [expenses, setExpenses] = useState<Record<string, ExpenseValues>>(() =>
     Object.fromEntries(EXPENSE_ROWS.map((r) => [r.label, { budgeted: '', adjustment: '' }]))
@@ -75,12 +75,12 @@ export default function EmergencyFund() {
       {
         header: 'Budgeted',
         width: 'w-36',
-        cell: row => (
+        cell: (row) => (
           <CurrencyInput
             compact
             value={expenses[row.label].budgeted}
-            onChange={v =>
-              setExpenses(prev => ({ ...prev, [row.label]: { ...prev[row.label], budgeted: v } }))
+            onChange={(v) =>
+              setExpenses((prev) => ({ ...prev, [row.label]: { ...prev[row.label], budgeted: v } }))
             }
           />
         ),
@@ -89,12 +89,12 @@ export default function EmergencyFund() {
       {
         header: 'Adjustment',
         width: 'w-36',
-        cell: row => (
+        cell: (row) => (
           <CurrencyInput
             compact
             value={expenses[row.label].adjustment}
-            onChange={v =>
-              setExpenses(prev => ({
+            onChange={(v) =>
+              setExpenses((prev) => ({
                 ...prev,
                 [row.label]: { ...prev[row.label], adjustment: v },
               }))
@@ -106,7 +106,7 @@ export default function EmergencyFund() {
       {
         header: 'Effective',
         width: 'w-24',
-        cell: row =>
+        cell: (row) =>
           row.effective !== 0 ? (
             <span className="text-gray-700 dark:text-gray-300">{fmt(row.effective)}</span>
           ) : (
@@ -116,7 +116,7 @@ export default function EmergencyFund() {
         footerPrimary: true,
       },
     ],
-    [expenses, totalBudgeted, totalAdjustment, monthlyTotal],
+    [expenses, totalBudgeted, totalAdjustment, monthlyTotal]
   )
 
   const coverageMonthsNum = parseInt(coverageMonths) || 0
@@ -146,7 +146,7 @@ export default function EmergencyFund() {
         : ''
 
   return (
-    <div className="max-w-5xl">
+    <div className="max-w-7xl">
       <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
         <h1 className="text-2xl font-bold mb-1">Emergency Fund</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -155,35 +155,22 @@ export default function EmergencyFund() {
       </div>
 
       {/* Hero stats */}
-      <div className="grid grid-cols-5 gap-3 mb-8">
-        {[
+      <HeroStats
+        stats={[
+          { label: 'Monthly Expenses', value: monthlyTotal > 0 ? fmt(monthlyTotal) : '$—' },
           {
-            label: 'Monthly Expenses',
-            value: monthlyTotal > 0 ? fmt(monthlyTotal) : '$—',
-            colorClass: '',
+            label: 'Coverage Target',
+            value: coverageMonthsNum > 0 ? `${coverageMonthsNum} mo` : '— mo',
           },
-          { label: 'Coverage Target', value: coverageMonthsNum > 0 ? `${coverageMonthsNum} mo` : '— mo', colorClass: '' },
-          { label: 'Current Balance', value: balance > 0 ? fmt(balance) : '$—', colorClass: '' },
-          {
-            label: 'Target Balance',
-            value: targetBalance > 0 ? fmt(targetBalance) : '$—',
-            colorClass: '',
-          },
+          { label: 'Current Balance', value: balance > 0 ? fmt(balance) : '$—' },
+          { label: 'Target Balance', value: targetBalance > 0 ? fmt(targetBalance) : '$—' },
           {
             label: 'Progress',
             value: targetBalance > 0 ? `${progressPct.toFixed(1)}%` : '—%',
-            colorClass: progressTextColor,
+            progress: { pct: progressPct, colorClass: progressTextColor },
           },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{s.label}</p>
-            <p className={`text-xl font-semibold tabular-nums ${s.colorClass}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+        ]}
+      />
 
       {/* Chart + Progress row */}
       <div className="grid grid-cols-2 gap-6 mb-8">
@@ -253,11 +240,7 @@ export default function EmergencyFund() {
       {/* Expense table + Fund inputs row */}
       <div className="grid grid-cols-[1fr_296px] gap-8">
         {/* Expense table */}
-        <DataTable
-          title="Monthly Essential Expenses"
-          rows={rows}
-          columns={columns}
-        />
+        <DataTable title="Monthly Essential Expenses" rows={rows} columns={columns} />
 
         {/* Fund target inputs */}
         <div>
@@ -308,7 +291,7 @@ export default function EmergencyFund() {
               <input
                 type="month"
                 value={startDate}
-                onChange={e => setStartDate(e.target.value)}
+                onChange={(e) => setStartDate(e.target.value)}
                 className="w-full border border-gray-300 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
               />
             </div>
