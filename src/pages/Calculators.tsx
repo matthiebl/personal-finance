@@ -1,4 +1,14 @@
-const CALCULATORS = [
+import { useState } from 'react'
+import { CurrencyInput, SuffixInput, TextInput } from '../components/inputs'
+import { PageHeader } from '../components/layout'
+
+type CalcInput =
+  | { label: string; prefix: '$'; placeholder: string }
+  | { label: string; suffix: string; placeholder: string }
+  | { label: string; placeholder: string }
+  | { label: string; type: 'select'; options: string[] }
+
+const CALCULATORS: { name: string; description: string; inputs: CalcInput[]; result: string }[] = [
   {
     name: 'Compound Interest',
     description: 'Calculate how an investment grows over time with compounding returns.',
@@ -59,67 +69,89 @@ const CALCULATORS = [
   },
 ]
 
+function CalculatorCard({
+  calc,
+}: {
+  calc: (typeof CALCULATORS)[0]
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(calc.inputs.map((i) => [i.label, '']))
+  )
+  const update = (label: string, v: string) => setValues((prev) => ({ ...prev, [label]: v }))
+
+  return (
+    <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5">
+      <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">{calc.name}</h2>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{calc.description}</p>
+
+      <div className="space-y-3 mb-4">
+        {calc.inputs.map((input) => (
+          <div key={input.label} className="flex items-center gap-2">
+            <label className="text-xs text-gray-500 dark:text-gray-400 w-36 shrink-0">
+              {input.label}
+            </label>
+            {'type' in input && input.type === 'select' ? (
+              <select className="flex-1 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600">
+                {input.options.map((o) => (
+                  <option key={o}>{o}</option>
+                ))}
+              </select>
+            ) : 'prefix' in input ? (
+              <div className="flex-1">
+                <CurrencyInput
+                  compact
+                  value={values[input.label]}
+                  onChange={(v) => update(input.label, v)}
+                  placeholder={input.placeholder}
+                />
+              </div>
+            ) : 'suffix' in input ? (
+              <div className="flex-1">
+                <SuffixInput
+                  compact
+                  value={values[input.label]}
+                  onChange={(v) => update(input.label, v)}
+                  suffix={input.suffix}
+                  placeholder={input.placeholder}
+                />
+              </div>
+            ) : (
+              <div className="flex-1">
+                <TextInput
+                  compact
+                  value={values[input.label]}
+                  onChange={(v) => update(input.label, v)}
+                  placeholder={input.placeholder}
+                />
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
+        <span className="text-sm font-medium tabular-nums text-gray-500 dark:text-gray-400">
+          {calc.result}
+        </span>
+        <button className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
+          Calculate
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function Calculators() {
   return (
     <div>
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Calculators</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          A collection of useful financial calculators.
-        </p>
-      </div>
+      <PageHeader
+        title="Calculators"
+        subtitle="A collection of useful financial calculators."
+      />
 
       <div className="grid grid-cols-2 gap-5">
         {CALCULATORS.map((calc) => (
-          <div
-            key={calc.name}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5"
-          >
-            <h2 className="font-semibold mb-1 text-gray-900 dark:text-gray-100">{calc.name}</h2>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">{calc.description}</p>
-
-            <div className="space-y-3 mb-4">
-              {calc.inputs.map((input) => (
-                <div key={input.label} className="flex items-center gap-2">
-                  <label className="text-xs text-gray-500 dark:text-gray-400 w-36 shrink-0">
-                    {input.label}
-                  </label>
-                  {'type' in input && input.type === 'select' ? (
-                    <select className="flex-1 border border-gray-200 dark:border-gray-700 rounded px-2 py-1 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600">
-                      {input.options?.map((o) => <option key={o}>{o}</option>)}
-                    </select>
-                  ) : (
-                    <div className="flex flex-1">
-                      {'prefix' in input && input.prefix && (
-                        <span className="inline-flex items-center px-2 rounded-l border border-r-0 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
-                          {input.prefix}
-                        </span>
-                      )}
-                      <input
-                        type="number"
-                        placeholder={input.placeholder}
-                        className={`flex-1 border border-gray-200 dark:border-gray-700 text-sm bg-white dark:bg-gray-900 px-2 py-1 tabular-nums focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600 ${'prefix' in input && input.prefix ? 'rounded-r' : ''} ${'suffix' in input && input.suffix ? 'rounded-l' : ''} ${'prefix' in input && !input.prefix && 'suffix' in input && !input.suffix ? 'rounded' : ''}`}
-                      />
-                      {'suffix' in input && input.suffix && (
-                        <span className="inline-flex items-center px-2 rounded-r border border-l-0 border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-xs text-gray-500 dark:text-gray-400">
-                          {input.suffix}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-800">
-              <span className="text-sm font-medium tabular-nums text-gray-500 dark:text-gray-400">
-                {calc.result}
-              </span>
-              <button className="text-xs px-3 py-1.5 bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors">
-                Calculate
-              </button>
-            </div>
-          </div>
+          <CalculatorCard key={calc.name} calc={calc} />
         ))}
       </div>
     </div>

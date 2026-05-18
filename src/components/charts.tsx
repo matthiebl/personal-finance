@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { fmt, fmtAxis } from '../lib/finance'
 import {
   Bar,
   BarChart,
@@ -20,8 +21,7 @@ type TooltipEntry = { name: string; value?: number; payload: { color: string } }
 function DonutTooltip({ active, payload }: { active?: boolean; payload?: TooltipEntry[] }) {
   if (!active || !payload?.length) return null
   const item = payload[0]
-  const abs = Math.abs(Math.round(item.value ?? 0))
-  const formatted = ((item.value ?? 0) < 0 ? '-$' : '$') + abs.toLocaleString('en-US')
+  const formatted = fmt(item.value ?? 0)
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
       <div className="flex items-center gap-1.5 mb-1">
@@ -38,16 +38,6 @@ function DonutTooltip({ active, payload }: { active?: boolean; payload?: Tooltip
 
 // ─── Growth Bar Chart ────────────────────────────────────────────────────────
 
-function fmtAmount(n: number): string {
-  const abs = Math.abs(Math.round(n))
-  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-US')
-}
-
-function fmtAxisTick(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}k`
-  return `$${Math.round(n)}`
-}
 
 type GrowthBarDatum = { label: string; initial: number; deposits: number; interest: number }
 
@@ -184,7 +174,7 @@ function GrowthTooltip({
             </span>
           </div>
           <span className="text-gray-700 dark:text-gray-200 tabular-nums">
-            {fmtAmount(p.value)}
+            {fmt(p.value)}
           </span>
         </div>
       ))}
@@ -192,7 +182,7 @@ function GrowthTooltip({
         <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
           <span className="font-medium text-gray-700 dark:text-gray-200">Total</span>
           <span className="font-medium text-gray-700 dark:text-gray-200 tabular-nums">
-            {fmtAmount(total)}
+            {fmt(total)}
           </span>
         </div>
       )}
@@ -251,7 +241,7 @@ export function GrowthBarChart({
           interval={tickInterval}
         />
         <YAxis
-          tickFormatter={fmtAxisTick}
+          tickFormatter={fmtAxis}
           tick={{ fontSize: 10, fill: '#9ca3af' }}
           axisLine={false}
           tickLine={false}
@@ -296,11 +286,11 @@ function FundsTooltip({ active, payload, label }: FundsTooltipProps) {
       </div>
       <div className="flex justify-between gap-4 mb-0.5">
         <span className="text-gray-500 dark:text-gray-400">Saved</span>
-        <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmtAmount(d.saved)}</span>
+        <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(d.saved)}</span>
       </div>
       <div className="flex justify-between gap-4">
         <span className="text-gray-500 dark:text-gray-400">Goal</span>
-        <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmtAmount(d.total)}</span>
+        <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(d.total)}</span>
       </div>
       <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
         <span className="font-medium text-gray-500 dark:text-gray-400">Progress</span>
@@ -352,7 +342,7 @@ export function FundsBarChart({
           height={50}
         />
         <YAxis
-          tickFormatter={fmtAxisTick}
+          tickFormatter={fmtAxis}
           tick={{ fontSize: 10, fill: '#9ca3af' }}
           axisLine={false}
           tickLine={false}

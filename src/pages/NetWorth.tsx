@@ -1,8 +1,11 @@
+import { HeroStats } from '../components/hero'
+import { PageHeader } from '../components/layout'
+
 const ASSETS = [
   { name: 'Checking Account', category: 'Cash & Bank' },
   { name: 'Savings Account', category: 'Cash & Bank' },
   { name: 'Emergency Fund', category: 'Cash & Bank' },
-  { name: '401(k) / Super', category: 'Investments' },
+  { name: 'Superannuation', category: 'Investments' },
   { name: 'Brokerage', category: 'Investments' },
   { name: 'Primary Residence', category: 'Property' },
   { name: 'Vehicle', category: 'Other' },
@@ -11,7 +14,7 @@ const ASSETS = [
 const LIABILITIES = [
   { name: 'Mortgage', category: 'Loans' },
   { name: 'Car Loan', category: 'Loans' },
-  { name: 'Student Loan', category: 'Loans' },
+  { name: 'HECS-HELP', category: 'Loans' },
   { name: 'Credit Card A', category: 'Credit Cards' },
   { name: 'Credit Card B', category: 'Credit Cards' },
   { name: 'Personal Loan', category: 'Other' },
@@ -69,28 +72,18 @@ function Table({
 export default function NetWorth() {
   return (
     <div>
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Net Worth</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Track your assets and liabilities to calculate your net worth.
-        </p>
-      </div>
+      <PageHeader
+        title="Net Worth"
+        subtitle="Track your assets and liabilities to calculate your net worth."
+      />
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {[
-          { label: 'Total Assets', value: '$—', color: 'text-green-600 dark:text-green-400' },
-          { label: 'Total Liabilities', value: '$—', color: 'text-red-500 dark:text-red-400' },
-          { label: 'Net Worth', value: '$—', color: 'text-gray-900 dark:text-gray-100' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-5 py-4"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{s.label}</p>
-            <p className={`text-2xl font-semibold tabular-nums ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+      <HeroStats
+        stats={[
+          { label: 'Total Assets', value: '$—', colorClass: 'text-green-600 dark:text-green-400' },
+          { label: 'Total Liabilities', value: '$—', colorClass: 'text-red-500 dark:text-red-400' },
+          { label: 'Net Worth', value: '$—', colorClass: 'text-gray-900 dark:text-gray-100' },
+        ]}
+      />
 
       <div className="flex gap-8">
         <Table title="Assets" rows={ASSETS} accent="text-green-600 dark:text-green-400" />

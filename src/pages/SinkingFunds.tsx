@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { DonutChart, FundsBarChart, GrowthBarChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, SuffixInput, TextInput } from '../components/inputs'
+import { PageHeader, SectionHeading } from '../components/layout'
+import { calcMonthsToGoal, fmt } from '../lib/finance'
 
 const FUND_COLORS = [
   '#6366f1',
@@ -35,28 +37,6 @@ const makeRow = (): FundRow => ({
   monthly: '',
   interestRate: '',
 })
-
-function calcMonthsToGoal(
-  saved: number,
-  goal: number,
-  monthly: number,
-  annualRate: number
-): number | null {
-  if (goal <= 0 || saved >= goal) return null
-  if (monthly <= 0 && annualRate <= 0) return null
-  const rm = annualRate / 12 / 100
-  let bal = saved
-  for (let n = 1; n <= 1200; n++) {
-    bal = bal * (1 + rm) + monthly
-    if (bal >= goal) return n
-  }
-  return null
-}
-
-function fmt(n: number): string {
-  const abs = Math.abs(Math.round(n))
-  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-US')
-}
 
 export default function SinkingFunds() {
   const [rows, setRows] = useState<FundRow[]>(() => Array.from({ length: 10 }, makeRow))
@@ -120,14 +100,11 @@ export default function SinkingFunds() {
 
   return (
     <div className="max-w-7xl">
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Sinking Funds</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Plan and track savings for known future expenses.
-        </p>
-      </div>
+      <PageHeader
+        title="Sinking Funds"
+        subtitle="Plan and track savings for known future expenses."
+      />
 
-      {/* Hero stats */}
       <HeroStats
         stats={[
           { label: 'Total Funds Goal', value: totalGoal > 0 ? fmt(totalGoal) : '$—' },
@@ -140,12 +117,9 @@ export default function SinkingFunds() {
         ]}
       />
 
-      {/* Charts */}
       <div className="grid grid-cols-2 gap-6 mb-8">
         <div className="flex flex-col">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Fund Breakdown
-          </p>
+          <SectionHeading>Fund Breakdown</SectionHeading>
           <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex gap-6 items-center">
             <div className="shrink-0 w-44">
               <DonutChart segments={pieSegments} emptyMessage="Add funds to see breakdown" />
@@ -176,9 +150,7 @@ export default function SinkingFunds() {
         </div>
 
         <div className="flex flex-col">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Saved vs Goal
-          </p>
+          <SectionHeading>Saved vs Goal</SectionHeading>
           <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex flex-col">
             <div className="flex items-center gap-4 mb-3 shrink-0">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -197,11 +169,8 @@ export default function SinkingFunds() {
         </div>
       </div>
 
-      {/* Funds table */}
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-          Sinking Funds
-        </p>
+        <SectionHeading>Sinking Funds</SectionHeading>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -324,11 +293,8 @@ export default function SinkingFunds() {
         </div>
       </div>
 
-      {/* Growth Projection */}
       <div className="mt-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-          Growth Projection
-        </p>
+        <SectionHeading>Growth Projection</SectionHeading>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-4">

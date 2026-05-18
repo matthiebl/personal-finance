@@ -133,7 +133,7 @@ function App() {
             <Route path="/overview" element={<Overview />} />
             <Route path="/networth" element={<NetWorth />} />
             <Route path="/monthly" element={<MonthlyData />} />
-<Route path="/emergency-fund" element={<EmergencyFund />} />
+            <Route path="/emergency-fund" element={<EmergencyFund />} />
             <Route path="/sinking-funds" element={<SinkingFunds />} />
             <Route path="/debt-snowball" element={<DebtSnowball />} />
             <Route path="/home" element={<HomeAffordability />} />

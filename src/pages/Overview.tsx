@@ -1,3 +1,6 @@
+import { HeroStats } from '../components/hero'
+import { PageHeader } from '../components/layout'
+
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
 const CATEGORIES = [
@@ -18,34 +21,22 @@ const CATEGORIES = [
   { label: 'Savings Rate', type: 'rate' },
 ]
 
-const STAT_CARDS = [
-  { label: 'Annual Income', value: '$—' },
-  { label: 'Total Expenses', value: '$—' },
-  { label: 'Total Savings', value: '$—' },
-  { label: 'Avg Savings Rate', value: '—%' },
-]
-
 export default function Overview() {
   return (
     <div>
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Annual Overview</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Full-year income and expense breakdown by month.
-        </p>
-      </div>
+      <PageHeader
+        title="Annual Overview"
+        subtitle="Full-year income and expense breakdown by month."
+      />
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {STAT_CARDS.map((card) => (
-          <div
-            key={card.label}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-5 py-4"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{card.label}</p>
-            <p className="text-2xl font-semibold tabular-nums">{card.value}</p>
-          </div>
-        ))}
-      </div>
+      <HeroStats
+        stats={[
+          { label: 'Annual Income', value: '$—' },
+          { label: 'Total Expenses', value: '$—' },
+          { label: 'Total Savings', value: '$—' },
+          { label: 'Avg Savings Rate', value: '—%' },
+        ]}
+      />
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">

@@ -1,12 +1,17 @@
+import { useState } from 'react'
+import { CurrencyInput, TextInput } from '../components/inputs'
+import { PageHeader } from '../components/layout'
+
 export default function Welcome() {
+  const [name, setName] = useState('')
+  const [income, setIncome] = useState('')
+
   return (
     <div className="max-w-3xl">
-      <div className="mb-8 pb-6 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Welcome</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Set up your basic profile to personalise the app.
-        </p>
-      </div>
+      <PageHeader
+        title="Welcome"
+        subtitle="Set up your basic profile to personalise the app."
+      />
 
       <div className="grid grid-cols-2 gap-8">
         <div>
@@ -27,26 +32,13 @@ export default function Welcome() {
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
               Your name
             </label>
-            <input
-              type="text"
-              placeholder="e.g. Alex"
-              className="border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 w-full focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
-            />
+            <TextInput value={name} onChange={setName} placeholder="e.g. Alex" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
               Annual gross income
             </label>
-            <div className="flex">
-              <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                $
-              </span>
-              <input
-                type="number"
-                placeholder="85,000"
-                className="flex-1 border border-gray-300 dark:border-gray-700 rounded-r-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600 tabular-nums"
-              />
-            </div>
+            <CurrencyInput value={income} onChange={setIncome} placeholder="85,000" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
@@ -63,8 +55,8 @@ export default function Welcome() {
               Currency
             </label>
             <select className="border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 w-full focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600">
-              <option value="USD">USD — US Dollar</option>
               <option value="AUD">AUD — Australian Dollar</option>
+              <option value="USD">USD — US Dollar</option>
               <option value="EUR">EUR — Euro</option>
               <option value="GBP">GBP — British Pound</option>
               <option value="CAD">CAD — Canadian Dollar</option>

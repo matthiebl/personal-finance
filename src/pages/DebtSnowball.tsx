@@ -1,43 +1,40 @@
+import { useState } from 'react'
+import { HeroStats } from '../components/hero'
+import { CurrencyInput } from '../components/inputs'
+import { PageHeader, SectionHeading } from '../components/layout'
+
 const DEBTS = [
   { name: 'Credit Card A', balance: '$—', minPayment: '$—', rate: '—%', order: 1 },
   { name: 'Credit Card B', balance: '$—', minPayment: '$—', rate: '—%', order: 2 },
   { name: 'Personal Loan', balance: '$—', minPayment: '$—', rate: '—%', order: 3 },
   { name: 'Car Loan', balance: '$—', minPayment: '$—', rate: '—%', order: 4 },
-  { name: 'Student Loan', balance: '$—', minPayment: '$—', rate: '—%', order: 5 },
+  { name: 'HECS-HELP', balance: '$—', minPayment: '$—', rate: '—%', order: 5 },
   { name: 'Mortgage', balance: '$—', minPayment: '$—', rate: '—%', order: 6 },
 ]
 
 export default function DebtSnowball() {
+  const [extraPayment, setExtraPayment] = useState('')
+
   return (
     <div>
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800 flex items-end justify-between">
-        <div>
-          <h1 className="text-2xl font-bold mb-1">Debt Snowball</h1>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            List your debts, set a payoff order, and track your progress.
-          </p>
-        </div>
-        <button className="border border-gray-300 dark:border-gray-700 text-sm px-4 py-1.5 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
-          + Add Debt
-        </button>
-      </div>
+      <PageHeader
+        title="Debt Snowball"
+        subtitle="List your debts, set a payoff order, and track your progress."
+        actions={
+          <button className="border border-gray-300 dark:border-gray-700 text-sm px-4 py-1.5 rounded-md text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+            + Add Debt
+          </button>
+        }
+      />
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Total Debt', value: '$—', color: 'text-red-500 dark:text-red-400' },
-          { label: 'Total Min. Payments', value: '$—', color: '' },
-          { label: 'Extra Payment Budget', value: '$—', color: 'text-green-600 dark:text-green-400' },
-          { label: 'Est. Debt-Free', value: '—', color: '' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-5 py-4"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{s.label}</p>
-            <p className={`text-2xl font-semibold tabular-nums ${s.color}`}>{s.value}</p>
-          </div>
-        ))}
-      </div>
+      <HeroStats
+        stats={[
+          { label: 'Total Debt', value: '$—', colorClass: 'text-red-500 dark:text-red-400' },
+          { label: 'Total Min. Payments', value: '$—' },
+          { label: 'Extra Payment Budget', value: '$—', colorClass: 'text-green-600 dark:text-green-400' },
+          { label: 'Est. Debt-Free', value: '—' },
+        ]}
+      />
 
       <div className="mb-5 flex items-center gap-3">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
@@ -121,21 +118,10 @@ export default function DebtSnowball() {
       </table>
 
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-          Extra Monthly Payment Budget
-        </p>
+        <SectionHeading>Extra Monthly Payment Budget</SectionHeading>
         <div className="flex items-center gap-3 max-w-xs">
-          <div className="flex flex-1">
-            <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-              $
-            </span>
-            <input
-              type="number"
-              placeholder="0.00"
-              className="flex-1 border border-gray-300 dark:border-gray-700 rounded-r-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 tabular-nums focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
-            />
-          </div>
-          <span className="text-xs text-gray-400 dark:text-gray-600">per month</span>
+          <CurrencyInput value={extraPayment} onChange={setExtraPayment} placeholder="0.00" />
+          <span className="text-xs text-gray-400 dark:text-gray-600 shrink-0">per month</span>
         </div>
       </div>
     </div>

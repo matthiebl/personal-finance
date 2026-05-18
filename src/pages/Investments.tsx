@@ -1,83 +1,58 @@
+import { useState } from 'react'
+import { HeroStats } from '../components/hero'
+import { CurrencyInput, SuffixInput } from '../components/inputs'
+import { PageHeader, SectionHeading } from '../components/layout'
+
 const YEARS = Array.from({ length: 30 }, (_, i) => i + 1)
 
 export default function Investments() {
+  const [initial, setInitial] = useState('')
+  const [monthly, setMonthly] = useState('')
+  const [annualReturn, setAnnualReturn] = useState('')
+  const [inflationRate, setInflationRate] = useState('')
+
   return (
     <div>
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Investment Calculator</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Project portfolio growth with regular contributions and compounding returns.
-        </p>
-      </div>
+      <PageHeader
+        title="Investment Calculator"
+        subtitle="Project portfolio growth with regular contributions and compounding returns."
+      />
 
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        {[
+      <HeroStats
+        stats={[
           { label: 'Final Value', value: '$—' },
           { label: 'Total Contributed', value: '$—' },
           { label: 'Total Returns', value: '$—' },
           { label: 'Return on Investment', value: '—%' },
-        ].map((s) => (
-          <div
-            key={s.label}
-            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-5 py-4"
-          >
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">{s.label}</p>
-            <p className="text-2xl font-semibold tabular-nums">{s.value}</p>
-          </div>
-        ))}
-      </div>
+        ]}
+      />
 
       <div className="grid grid-cols-3 gap-8">
         <div className="space-y-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-            Inputs
-          </p>
+          <SectionHeading>Inputs</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Initial investment
               </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                  $
-                </span>
-                <input
-                  type="number"
-                  placeholder="10,000"
-                  className="flex-1 border border-gray-300 dark:border-gray-700 rounded-r-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 tabular-nums focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
-                />
-              </div>
+              <CurrencyInput value={initial} onChange={setInitial} placeholder="10,000" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Monthly contribution
               </label>
-              <div className="flex">
-                <span className="inline-flex items-center px-3 rounded-l-md border border-r-0 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                  $
-                </span>
-                <input
-                  type="number"
-                  placeholder="500"
-                  className="flex-1 border border-gray-300 dark:border-gray-700 rounded-r-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 tabular-nums focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
-                />
-              </div>
+              <CurrencyInput value={monthly} onChange={setMonthly} placeholder="500" />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Expected annual return
               </label>
-              <div className="flex">
-                <input
-                  type="number"
-                  placeholder="7"
-                  step="0.1"
-                  className="flex-1 border border-gray-300 dark:border-gray-700 rounded-l-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 tabular-nums focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
-                />
-                <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                  %
-                </span>
-              </div>
+              <SuffixInput
+                value={annualReturn}
+                onChange={setAnnualReturn}
+                suffix="%"
+                placeholder="7"
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
@@ -85,9 +60,7 @@ export default function Investments() {
               </label>
               <select className="border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 w-full focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600">
                 {[5, 10, 15, 20, 25, 30].map((y) => (
-                  <option key={y} selected={y === 30}>
-                    {y} years
-                  </option>
+                  <option key={y} defaultValue={30}>{y} years</option>
                 ))}
               </select>
             </div>
@@ -105,25 +78,18 @@ export default function Investments() {
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Inflation rate (optional)
               </label>
-              <div className="flex">
-                <input
-                  type="number"
-                  placeholder="3"
-                  step="0.1"
-                  className="flex-1 border border-gray-300 dark:border-gray-700 rounded-l-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 tabular-nums focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
-                />
-                <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 text-sm text-gray-500 dark:text-gray-400">
-                  %
-                </span>
-              </div>
+              <SuffixInput
+                value={inflationRate}
+                onChange={setInflationRate}
+                suffix="%"
+                placeholder="3"
+              />
             </div>
           </div>
         </div>
 
         <div className="col-span-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-4">
-            Year-by-Year Growth
-          </p>
+          <SectionHeading>Year-by-Year Growth</SectionHeading>
           <table className="w-full text-sm border-collapse">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">

@@ -2,8 +2,10 @@ import { useMemo, useState } from 'react'
 import { DonutChart, GrowthBarChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, SuffixInput } from '../components/inputs'
+import { PageHeader, SectionHeading } from '../components/layout'
 import type { DataTableColumn } from '../components/table'
 import { DataTable } from '../components/table'
+import { calcMonthsToGoal, fmt } from '../lib/finance'
 
 const EXPENSE_ROWS = [
   { label: 'Rent / Mortgage', color: '#6366f1' },
@@ -19,28 +21,6 @@ const EXPENSE_ROWS = [
 ]
 
 type ExpenseValues = { budgeted: string; adjustment: string }
-
-function fmt(n: number): string {
-  const abs = Math.abs(Math.round(n))
-  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-US')
-}
-
-function calcMonthsToGoal(
-  balance: number,
-  target: number,
-  contribution: number,
-  annualRate: number
-): number | null {
-  if (target <= 0 || balance >= target) return null
-  if (contribution <= 0 && annualRate <= 0) return null
-  const rm = annualRate / 12 / 100
-  let bal = balance
-  for (let n = 1; n <= 1200; n++) {
-    bal = bal * (1 + rm) + contribution
-    if (bal >= target) return n
-  }
-  return null
-}
 
 export default function EmergencyFund() {
   const [expenses, setExpenses] = useState<Record<string, ExpenseValues>>(() =>
@@ -147,14 +127,11 @@ export default function EmergencyFund() {
 
   return (
     <div className="max-w-7xl">
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Emergency Fund</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400">
-          Calculate your target emergency fund and track your progress toward it.
-        </p>
-      </div>
+      <PageHeader
+        title="Emergency Fund"
+        subtitle="Calculate your target emergency fund and track your progress toward it."
+      />
 
-      {/* Hero stats */}
       <HeroStats
         stats={[
           { label: 'Monthly Expenses', value: monthlyTotal > 0 ? fmt(monthlyTotal) : '$—' },
@@ -172,13 +149,9 @@ export default function EmergencyFund() {
         ]}
       />
 
-      {/* Chart + Progress row */}
       <div className="grid grid-cols-2 gap-6 mb-8">
-        {/* Donut chart */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Expense Breakdown
-          </p>
+          <SectionHeading>Expense Breakdown</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex gap-6 items-center">
             <div className="shrink-0 w-44">
               <DonutChart segments={pieSegments} />
@@ -208,11 +181,8 @@ export default function EmergencyFund() {
           </div>
         </div>
 
-        {/* Progress */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Progress
-          </p>
+          <SectionHeading>Progress</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-5 h-[calc(100%-28px)] flex flex-col justify-center gap-4">
             <div className="flex justify-between text-sm text-gray-500 dark:text-gray-400">
               <span>{balance > 0 ? fmt(balance) : '$—'} saved</span>
@@ -237,16 +207,11 @@ export default function EmergencyFund() {
         </div>
       </div>
 
-      {/* Expense table + Fund inputs row */}
       <div className="grid grid-cols-[1fr_296px] gap-8">
-        {/* Expense table */}
         <DataTable title="Monthly Essential Expenses" rows={rows} columns={columns} />
 
-        {/* Fund target inputs */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Fund Target
-          </p>
+          <SectionHeading>Fund Target</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 space-y-4">
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
@@ -299,11 +264,8 @@ export default function EmergencyFund() {
         </div>
       </div>
 
-      {/* Growth projection chart */}
       <div className="mt-8">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-          Growth Projection
-        </p>
+        <SectionHeading>Growth Projection</SectionHeading>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <div className="flex items-center gap-4 mb-4">
             <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">

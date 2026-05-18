@@ -28,9 +28,7 @@ export function HeroStats({ stats, cols }: { stats: HeroStat[]; cols?: number })
             {s.progress && ` ${s.value}`}
           </p>
           {!s.progress && (
-            <p
-              className={`text-xl font-semibold tabular-nums ${s.colorClass ?? ''} ${s.progress ? 'mb-2' : ''}`}
-            >
+            <p className={`text-xl font-semibold tabular-nums ${s.colorClass ?? ''}`}>
               {s.value}
             </p>
           )}

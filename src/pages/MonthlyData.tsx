@@ -11,22 +11,14 @@ import {
 import { DonutChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, TextInput } from '../components/inputs'
+import { PageHeader, SectionHeading } from '../components/layout'
+import { fmt, fmtAxis } from '../lib/finance'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-function fmt(n: number): string {
-  const abs = Math.abs(Math.round(n))
-  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-US')
-}
-
-function fmtAxis(n: number): string {
-  if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
-  if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}k`
-  return `$${Math.round(n)}`
-}
 
 let _uid = 0
 function uid() { return `r${++_uid}` }
@@ -94,7 +86,7 @@ const INIT_VARIABLE = makeInitRows([
 
 const INIT_SAVINGS = makeInitRows([
   { label: 'Emergency Fund' },
-  { label: 'Retirement / Super' },
+  { label: 'Superannuation' },
   { label: 'Brokerage' },
   { label: 'Sinking Funds' },
 ])
@@ -160,9 +152,7 @@ function BudgetTable({
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-        {title}
-      </p>
+      <SectionHeading>{title}</SectionHeading>
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -300,9 +290,7 @@ function TransactionTable({
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-        Transactions
-      </p>
+      <SectionHeading>Transactions</SectionHeading>
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -566,14 +554,16 @@ export default function MonthlyData() {
 
   return (
     <div className="max-w-7xl">
-      {/* Header + month selector */}
-      <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-        <h1 className="text-2xl font-bold mb-1">Monthly Budget</h1>
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Track income, expenses, and savings for{' '}
-          <span className="font-medium text-gray-700 dark:text-gray-300">{MONTHS[selectedMonth]}</span>.
-        </p>
-        <div className="flex gap-2 flex-wrap">
+      <PageHeader
+        title="Monthly Budget"
+        subtitle={
+          <>
+            Track income, expenses, and savings for{' '}
+            <span className="font-medium text-gray-700 dark:text-gray-300">{MONTHS[selectedMonth]}</span>.
+          </>
+        }
+      >
+        <div className="flex gap-2 flex-wrap mt-4">
           {MONTHS.map((month, i) => (
             <button
               key={month}
@@ -588,7 +578,7 @@ export default function MonthlyData() {
             </button>
           ))}
         </div>
-      </div>
+      </PageHeader>
 
       {/* Hero row 1 */}
       <HeroStats
@@ -618,9 +608,7 @@ export default function MonthlyData() {
       {/* Charts */}
       <div className="grid grid-cols-[2fr_1fr] gap-6 mb-8">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Budget vs Actual
-          </p>
+          <SectionHeading>Budget vs Actual</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
             <div className="flex items-center gap-4 mb-3">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
@@ -637,9 +625,7 @@ export default function MonthlyData() {
         </div>
 
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-            Spending Breakdown
-          </p>
+          <SectionHeading>Spending Breakdown</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
             <DonutChart
               segments={donutSegments}
