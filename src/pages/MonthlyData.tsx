@@ -12,31 +12,21 @@ import { DonutChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, TextInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
+import { useAppData } from '../context/AppDataContext'
 import { fmt, fmtAxis } from '../lib/finance'
+import type { BudgetCategory, ExpenseType, Transaction } from '../lib/types'
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
   'July', 'August', 'September', 'October', 'November', 'December',
 ]
 
-
-let _uid = 0
-function uid() { return `r${++_uid}` }
-
-type ExpenseType = 'need' | 'want' | 'debt'
-
+// Local display type — combines BudgetCategory with per-month budgeted amount
 type BudgetRow = {
   id: string
   label: string
   budgeted: string
   expenseType?: ExpenseType
-}
-
-type Transaction = {
-  id: string
-  categoryId: string
-  amount: string
-  description: string
 }
 
 const TYPE_STYLES: Record<ExpenseType, string> = {
@@ -45,67 +35,8 @@ const TYPE_STYLES: Record<ExpenseType, string> = {
   debt: 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800',
 }
 
-function makeInitRows(
-  defs: { label: string; type?: ExpenseType }[],
-  defaultType?: ExpenseType,
-  total = 10,
-): BudgetRow[] {
-  const rows: BudgetRow[] = defs.map((d) => ({
-    id: uid(), label: d.label, budgeted: '', expenseType: d.type,
-  }))
-  while (rows.length < total) {
-    rows.push({ id: uid(), label: '', budgeted: '', expenseType: defaultType })
-  }
-  return rows
-}
-
-const INIT_INCOME = makeInitRows([
-  { label: 'Salary / Wages' },
-  { label: 'Freelance / Side Income' },
-  { label: 'Other Income' },
-])
-
-const INIT_FIXED = makeInitRows([
-  { label: 'Rent / Mortgage', type: 'need' },
-  { label: 'Car Payment', type: 'need' },
-  { label: 'Insurance', type: 'need' },
-  { label: 'Subscriptions', type: 'want' },
-  { label: 'Loan Repayments', type: 'debt' },
-], 'need')
-
-const INIT_VARIABLE = makeInitRows([
-  { label: 'Groceries', type: 'need' },
-  { label: 'Utilities', type: 'need' },
-  { label: 'Fuel / Transport', type: 'need' },
-  { label: 'Dining Out', type: 'want' },
-  { label: 'Entertainment', type: 'want' },
-  { label: 'Health', type: 'need' },
-  { label: 'Clothing', type: 'want' },
-  { label: 'Miscellaneous', type: 'want' },
-], 'want')
-
-const INIT_SAVINGS = makeInitRows([
-  { label: 'Emergency Fund' },
-  { label: 'Superannuation' },
-  { label: 'Brokerage' },
-  { label: 'Sinking Funds' },
-])
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
-function rowHandlers(
-  setter: (fn: (prev: BudgetRow[]) => BudgetRow[]) => void,
-  defaultType?: ExpenseType,
-) {
-  return {
-    update: (id: string, field: string, value: string) =>
-      setter((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r)),
-    add: () =>
-      setter((prev) => [...prev, { id: uid(), label: '', budgeted: '', expenseType: defaultType }]),
-    remove: (id: string) =>
-      setter((prev) => prev.filter((r) => r.id !== id)),
-  }
-}
+// Stable empty budget month — avoids new object reference every render for missing months
+const EMPTY_MONTH = Object.freeze({ budgeted: {} as Record<string, string>, transactions: [] as Transaction[] })
 
 // ─── TypeBadge ───────────────────────────────────────────────────────────────
 
@@ -279,18 +210,30 @@ function TransactionTable({
   onUpdate,
   onAdd,
   onRemove,
+  onCondense,
 }: {
   transactions: Transaction[]
   sections: { label: string; rows: BudgetRow[] }[]
   onUpdate: (id: string, field: keyof Transaction, value: string) => void
   onAdd: () => void
   onRemove: (id: string) => void
+  onCondense: () => void
 }) {
   const totalAmount = transactions.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
 
   return (
     <div>
-      <SectionHeading>Transactions</SectionHeading>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          Transactions
+        </p>
+        <button
+          onClick={onCondense}
+          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1 transition-colors"
+        >
+          Condense
+        </button>
+      </div>
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
         <table className="w-full text-sm border-collapse">
           <thead>
@@ -359,7 +302,7 @@ function TransactionTable({
             <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold">
               <td className="py-2 pl-4 pr-3 text-gray-700 dark:text-gray-200">Total</td>
               <td className="py-2 px-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                {totalAmount > 0 ? fmt(totalAmount) : '$—'}
+                {totalAmount !== 0 ? fmt(totalAmount) : '$—'}
               </td>
               <td colSpan={2} />
             </tr>
@@ -439,32 +382,70 @@ function BudgetComparisonChart({
   )
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+
+function toRows(cats: BudgetCategory[], budgeted: Record<string, string>): BudgetRow[] {
+  return cats.map((c) => ({
+    id: c.id,
+    label: c.label,
+    budgeted: budgeted[c.id] ?? '',
+    expenseType: c.expenseType,
+  }))
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MonthlyData() {
-  const currentMonth = new Date().getMonth()
-  const [selectedMonth, setSelectedMonth] = useState(currentMonth)
-  const [incomeRows, setIncomeRows] = useState<BudgetRow[]>(INIT_INCOME)
-  const [fixedRows, setFixedRows] = useState<BudgetRow[]>(INIT_FIXED)
-  const [variableRows, setVariableRows] = useState<BudgetRow[]>(INIT_VARIABLE)
-  const [savingsRows, setSavingsRows] = useState<BudgetRow[]>(INIT_SAVINGS)
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    { id: uid(), categoryId: '', amount: '', description: '' },
-  ])
+  const {
+    data,
+    updateCategory,
+    addCategory,
+    removeCategory,
+    updateBudgeted,
+    addTransaction,
+    updateTransaction,
+    removeTransaction,
+    condenseTransactions,
+  } = useAppData()
 
-  const income = rowHandlers(setIncomeRows)
-  const fixed = rowHandlers(setFixedRows, 'need')
-  const variable = rowHandlers(setVariableRows, 'want')
-  const savings = rowHandlers(setSavingsRows)
+  const now = new Date()
+  const [selectedYear, setSelectedYear] = useState(() => String(now.getFullYear()))
+  const [selectedMonthIdx, setSelectedMonthIdx] = useState(() => now.getMonth())
+  const monthStr = String(selectedMonthIdx + 1).padStart(2, '0')
 
-  function updateTx(id: string, field: keyof Transaction, value: string) {
-    setTransactions((prev) => prev.map((t) => t.id === id ? { ...t, [field]: value } : t))
+  const budgetMonth = data.budget.years[selectedYear]?.months[monthStr] ?? EMPTY_MONTH
+
+  // Sort categories by order
+  const sortedCats = useMemo(
+    () => [...data.budget.categories].sort((a, b) => a.order - b.order),
+    [data.budget.categories]
+  )
+
+  const incomeCats  = useMemo(() => sortedCats.filter((c) => c.section === 'income'),   [sortedCats])
+  const fixedCats   = useMemo(() => sortedCats.filter((c) => c.section === 'fixed'),    [sortedCats])
+  const varCats     = useMemo(() => sortedCats.filter((c) => c.section === 'variable'), [sortedCats])
+  const savingsCats = useMemo(() => sortedCats.filter((c) => c.section === 'savings'),  [sortedCats])
+
+  const incomeRows  = useMemo(() => toRows(incomeCats,  budgetMonth.budgeted), [incomeCats,  budgetMonth.budgeted])
+  const fixedRows   = useMemo(() => toRows(fixedCats,   budgetMonth.budgeted), [fixedCats,   budgetMonth.budgeted])
+  const varRows     = useMemo(() => toRows(varCats,     budgetMonth.budgeted), [varCats,     budgetMonth.budgeted])
+  const savingsRows = useMemo(() => toRows(savingsCats, budgetMonth.budgeted), [savingsCats, budgetMonth.budgeted])
+
+  // Shared update handler — routes field to correct context call
+  function handleCategoryUpdate(id: string, field: string, value: string) {
+    if (field === 'budgeted') {
+      updateBudgeted(selectedYear, monthStr, id, value)
+    } else if (field === 'label') {
+      updateCategory(id, { label: value })
+    } else if (field === 'expenseType') {
+      updateCategory(id, { expenseType: value as ExpenseType })
+    }
   }
-  function addTx() {
-    setTransactions((prev) => [...prev, { id: uid(), categoryId: '', amount: '', description: '' }])
-  }
-  function removeTx(id: string) {
-    setTransactions((prev) => prev.filter((t) => t.id !== id))
+
+  const transactions = budgetMonth.transactions
+
+  function handleTxUpdate(id: string, field: keyof Transaction, value: string) {
+    updateTransaction(selectedYear, monthStr, id, { [field]: value })
   }
 
   const actuals = useMemo(() => {
@@ -477,78 +458,58 @@ export default function MonthlyData() {
     return map
   }, [transactions])
 
-  const totalIncomeActual = useMemo(
-    () => incomeRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0), [incomeRows, actuals]
-  )
-  const totalFixedActual = useMemo(
-    () => fixedRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0), [fixedRows, actuals]
-  )
-  const totalVariableActual = useMemo(
-    () => variableRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0), [variableRows, actuals]
-  )
-  const totalSavingsActual = useMemo(
-    () => savingsRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0), [savingsRows, actuals]
-  )
+  const totalIncomeActual   = useMemo(() => incomeRows.reduce((s, r)  => s + (actuals[r.id] ?? 0), 0), [incomeRows,  actuals])
+  const totalFixedActual    = useMemo(() => fixedRows.reduce((s, r)   => s + (actuals[r.id] ?? 0), 0), [fixedRows,   actuals])
+  const totalVariableActual = useMemo(() => varRows.reduce((s, r)     => s + (actuals[r.id] ?? 0), 0), [varRows,     actuals])
+  const totalSavingsActual  = useMemo(() => savingsRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0), [savingsRows, actuals])
   const totalExpensesActual = totalFixedActual + totalVariableActual
 
-  const totalIncomeBudgeted = useMemo(
-    () => incomeRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0), [incomeRows]
-  )
-  const totalFixedBudgeted = useMemo(
-    () => fixedRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0), [fixedRows]
-  )
-  const totalVariableBudgeted = useMemo(
-    () => variableRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0), [variableRows]
-  )
-  const totalSavingsBudgeted = useMemo(
-    () => savingsRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0), [savingsRows]
-  )
+  const totalIncomeBudgeted   = useMemo(() => incomeRows.reduce((s, r)  => s + (parseFloat(r.budgeted) || 0), 0), [incomeRows])
+  const totalFixedBudgeted    = useMemo(() => fixedRows.reduce((s, r)   => s + (parseFloat(r.budgeted) || 0), 0), [fixedRows])
+  const totalVariableBudgeted = useMemo(() => varRows.reduce((s, r)     => s + (parseFloat(r.budgeted) || 0), 0), [varRows])
+  const totalSavingsBudgeted  = useMemo(() => savingsRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0), [savingsRows])
 
   const surplus = totalIncomeActual - totalExpensesActual - totalSavingsActual
 
   const { needsActual, wantsActual, debtActual } = useMemo(() => {
     let needsActual = 0, wantsActual = 0, debtActual = 0
-    for (const row of [...fixedRows, ...variableRows]) {
+    for (const row of [...fixedRows, ...varRows]) {
       const a = actuals[row.id] ?? 0
       if (row.expenseType === 'need') needsActual += a
       else if (row.expenseType === 'want') wantsActual += a
       else if (row.expenseType === 'debt') debtActual += a
     }
     return { needsActual, wantsActual, debtActual }
-  }, [fixedRows, variableRows, actuals])
+  }, [fixedRows, varRows, actuals])
 
-  const pctNeeds = totalIncomeActual > 0 ? (needsActual / totalIncomeActual) * 100 : 0
-  const pctWants = totalIncomeActual > 0 ? (wantsActual / totalIncomeActual) * 100 : 0
-  const pctSavings = totalIncomeActual > 0 ? (totalSavingsActual / totalIncomeActual) * 100 : 0
+  const pctNeeds   = totalIncomeActual > 0 ? (needsActual         / totalIncomeActual) * 100 : 0
+  const pctWants   = totalIncomeActual > 0 ? (wantsActual         / totalIncomeActual) * 100 : 0
+  const pctSavings = totalIncomeActual > 0 ? (totalSavingsActual  / totalIncomeActual) * 100 : 0
 
-  const surplusColor = surplus > 0
-    ? 'text-green-600 dark:text-green-400'
-    : surplus < 0
-      ? 'text-red-500 dark:text-red-400'
-      : ''
+  const surplusColor    = surplus > 0 ? 'text-green-600 dark:text-green-400' : surplus < 0 ? 'text-red-500 dark:text-red-400' : ''
   const savingsPctColor = pctSavings >= 20 ? 'text-green-600 dark:text-green-400' : ''
 
   const donutSegments = useMemo(() => {
     const segs = []
-    if (needsActual > 0) segs.push({ label: 'Needs', value: needsActual, color: '#6366f1' })
-    if (wantsActual > 0) segs.push({ label: 'Wants', value: wantsActual, color: '#8b5cf6' })
-    if (debtActual > 0) segs.push({ label: 'Debt', value: debtActual, color: '#f97316' })
+    if (needsActual > 0)      segs.push({ label: 'Needs',   value: needsActual,        color: '#6366f1' })
+    if (wantsActual > 0)      segs.push({ label: 'Wants',   value: wantsActual,        color: '#8b5cf6' })
+    if (debtActual > 0)       segs.push({ label: 'Debt',    value: debtActual,         color: '#f97316' })
     if (totalSavingsActual > 0) segs.push({ label: 'Savings', value: totalSavingsActual, color: '#10b981' })
-    if (surplus > 0) segs.push({ label: 'Surplus', value: surplus, color: '#94a3b8' })
+    if (surplus > 0)          segs.push({ label: 'Surplus', value: surplus,            color: '#94a3b8' })
     return segs
   }, [needsActual, wantsActual, debtActual, totalSavingsActual, surplus])
 
   const comparisonData = [
-    { name: 'Income', budgeted: totalIncomeBudgeted, actual: totalIncomeActual },
-    { name: 'Fixed', budgeted: totalFixedBudgeted, actual: totalFixedActual },
+    { name: 'Income',   budgeted: totalIncomeBudgeted,   actual: totalIncomeActual },
+    { name: 'Fixed',    budgeted: totalFixedBudgeted,    actual: totalFixedActual },
     { name: 'Variable', budgeted: totalVariableBudgeted, actual: totalVariableActual },
-    { name: 'Savings', budgeted: totalSavingsBudgeted, actual: totalSavingsActual },
+    { name: 'Savings',  budgeted: totalSavingsBudgeted,  actual: totalSavingsActual },
   ]
 
   const sections = [
-    { label: 'Income', rows: incomeRows },
-    { label: 'Fixed Expenses', rows: fixedRows },
-    { label: 'Variable Expenses', rows: variableRows },
+    { label: 'Income',               rows: incomeRows },
+    { label: 'Fixed Expenses',       rows: fixedRows },
+    { label: 'Variable Expenses',    rows: varRows },
     { label: 'Savings & Investments', rows: savingsRows },
   ]
 
@@ -559,17 +520,38 @@ export default function MonthlyData() {
         subtitle={
           <>
             Track income, expenses, and savings for{' '}
-            <span className="font-medium text-gray-700 dark:text-gray-300">{MONTHS[selectedMonth]}</span>.
+            <span className="font-medium text-gray-700 dark:text-gray-300">
+              {MONTHS[selectedMonthIdx]} {selectedYear}
+            </span>.
           </>
         }
       >
-        <div className="flex gap-2 flex-wrap mt-4">
+        {/* Year navigation */}
+        <div className="flex items-center gap-3 mt-4 mb-2">
+          <button
+            onClick={() => setSelectedYear((y) => String(parseInt(y) - 1))}
+            className="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            ← Prev
+          </button>
+          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-12 text-center">
+            {selectedYear}
+          </span>
+          <button
+            onClick={() => setSelectedYear((y) => String(parseInt(y) + 1))}
+            className="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+          >
+            Next →
+          </button>
+        </div>
+        {/* Month pills */}
+        <div className="flex gap-2 flex-wrap">
           {MONTHS.map((month, i) => (
             <button
               key={month}
-              onClick={() => setSelectedMonth(i)}
+              onClick={() => setSelectedMonthIdx(i)}
               className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                i === selectedMonth
+                i === selectedMonthIdx
                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium'
                   : 'border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
@@ -584,9 +566,9 @@ export default function MonthlyData() {
       <HeroStats
         cols={4}
         stats={[
-          { label: 'Total Income', value: totalIncomeActual > 0 ? fmt(totalIncomeActual) : '$—' },
+          { label: 'Total Income',   value: totalIncomeActual   > 0 ? fmt(totalIncomeActual)   : '$—' },
           { label: 'Total Expenses', value: totalExpensesActual > 0 ? fmt(totalExpensesActual) : '$—' },
-          { label: 'Total Savings', value: totalSavingsActual > 0 ? fmt(totalSavingsActual) : '$—' },
+          { label: 'Total Savings',  value: totalSavingsActual  > 0 ? fmt(totalSavingsActual)  : '$—' },
           { label: 'Surplus', value: totalIncomeActual > 0 ? fmt(surplus) : '$—', colorClass: surplusColor },
         ]}
       />
@@ -595,13 +577,9 @@ export default function MonthlyData() {
       <HeroStats
         cols={3}
         stats={[
-          { label: '% Needs', value: totalIncomeActual > 0 ? `${pctNeeds.toFixed(1)}%` : '—%' },
-          { label: '% Wants', value: totalIncomeActual > 0 ? `${pctWants.toFixed(1)}%` : '—%' },
-          {
-            label: '% Savings',
-            value: totalIncomeActual > 0 ? `${pctSavings.toFixed(1)}%` : '—%',
-            colorClass: savingsPctColor,
-          },
+          { label: '% Needs',   value: totalIncomeActual > 0 ? `${pctNeeds.toFixed(1)}%`   : '—%' },
+          { label: '% Wants',   value: totalIncomeActual > 0 ? `${pctWants.toFixed(1)}%`   : '—%' },
+          { label: '% Savings', value: totalIncomeActual > 0 ? `${pctSavings.toFixed(1)}%` : '—%', colorClass: savingsPctColor },
         ]}
       />
 
@@ -659,36 +637,36 @@ export default function MonthlyData() {
           actuals={actuals}
           hasType={false}
           isIncome
-          onUpdate={income.update}
-          onAdd={income.add}
-          onRemove={income.remove}
+          onUpdate={handleCategoryUpdate}
+          onAdd={() => addCategory('income')}
+          onRemove={removeCategory}
         />
         <BudgetTable
           title="Fixed Expenses"
           rows={fixedRows}
           actuals={actuals}
           hasType
-          onUpdate={fixed.update}
-          onAdd={fixed.add}
-          onRemove={fixed.remove}
+          onUpdate={handleCategoryUpdate}
+          onAdd={() => addCategory('fixed', 'need')}
+          onRemove={removeCategory}
         />
         <BudgetTable
           title="Variable Expenses"
-          rows={variableRows}
+          rows={varRows}
           actuals={actuals}
           hasType
-          onUpdate={variable.update}
-          onAdd={variable.add}
-          onRemove={variable.remove}
+          onUpdate={handleCategoryUpdate}
+          onAdd={() => addCategory('variable', 'want')}
+          onRemove={removeCategory}
         />
         <BudgetTable
           title="Savings & Investments"
           rows={savingsRows}
           actuals={actuals}
           hasType={false}
-          onUpdate={savings.update}
-          onAdd={savings.add}
-          onRemove={savings.remove}
+          onUpdate={handleCategoryUpdate}
+          onAdd={() => addCategory('savings')}
+          onRemove={removeCategory}
         />
       </div>
 
@@ -696,9 +674,10 @@ export default function MonthlyData() {
       <TransactionTable
         transactions={transactions}
         sections={sections}
-        onUpdate={updateTx}
-        onAdd={addTx}
-        onRemove={removeTx}
+        onUpdate={handleTxUpdate}
+        onAdd={() => addTransaction(selectedYear, monthStr)}
+        onRemove={(id) => removeTransaction(selectedYear, monthStr, id)}
+        onCondense={() => condenseTransactions(selectedYear, monthStr)}
       />
     </div>
   )

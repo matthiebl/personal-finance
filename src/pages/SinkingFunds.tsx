@@ -3,7 +3,9 @@ import { DonutChart, FundsBarChart, GrowthBarChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, SuffixInput, TextInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
+import { useAppData } from '../context/AppDataContext'
 import { calcMonthsToGoal, fmt } from '../lib/finance'
+import type { SinkingFundRow } from '../lib/types'
 
 const FUND_COLORS = [
   '#6366f1',
@@ -18,33 +20,17 @@ const FUND_COLORS = [
   '#94a3b8',
 ]
 
-type FundRow = {
-  id: string
-  name: string
-  goal: string
-  saved: string
-  monthly: string
-  interestRate: string
-}
-
-let _seq = 0
-const uid = () => String(++_seq)
-const makeRow = (): FundRow => ({
-  id: uid(),
-  name: '',
-  goal: '',
-  saved: '',
-  monthly: '',
-  interestRate: '',
-})
+// Use SinkingFundRow as the local alias
+type FundRow = SinkingFundRow
 
 export default function SinkingFunds() {
-  const [rows, setRows] = useState<FundRow[]>(() => Array.from({ length: 10 }, makeRow))
+  const { data, addSinkingFund, updateSinkingFund, removeSinkingFund } = useAppData()
+  const rows: FundRow[] = data.sinkingFunds
   const [selectedFundId, setSelectedFundId] = useState('')
-  const [startDate] = useState(() => {
+  const startDate = useMemo(() => {
     const now = new Date()
     return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  })
+  }, [])
 
   const fundData = useMemo(
     () =>
@@ -82,10 +68,10 @@ export default function SinkingFunds() {
     .map((r) => ({ name: r.name || 'Unnamed', goal: r.goalNum, saved: r.savedNum, color: r.color }))
 
   const update = (id: string, field: keyof FundRow, value: string) =>
-    setRows((prev) => prev.map((r) => (r.id === id ? { ...r, [field]: value } : r)))
+    updateSinkingFund(id, { [field]: value })
 
-  const addRow = () => setRows((prev) => [...prev, makeRow()])
-  const removeRow = (id: string) => setRows((prev) => prev.filter((r) => r.id !== id))
+  const addRow = () => addSinkingFund()
+  const removeRow = (id: string) => removeSinkingFund(id)
 
   const fundsWithGoal = fundData.filter((r) => r.goalNum > 0)
   const selectedFund =

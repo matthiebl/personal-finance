@@ -1,53 +1,59 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { DonutChart, GrowthBarChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, SuffixInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
 import type { DataTableColumn } from '../components/table'
 import { DataTable } from '../components/table'
+import { useAppData } from '../context/AppDataContext'
 import { calcMonthsToGoal, fmt } from '../lib/finance'
 
-const EXPENSE_ROWS = [
-  { label: 'Rent / Mortgage', color: '#6366f1' },
-  { label: 'Car Payment', color: '#8b5cf6' },
-  { label: 'Insurance', color: '#ec4899' },
-  { label: 'Subscriptions', color: '#f43f5e' },
-  { label: 'Loan Repayments', color: '#f97316' },
-  { label: 'Groceries', color: '#10b981' },
-  { label: 'Utilities', color: '#14b8a6' },
-  { label: 'Fuel / Transport', color: '#06b6d4' },
-  { label: 'Health', color: '#22c55e' },
-  { label: 'Other Essentials', color: '#94a3b8' },
+const EXPENSE_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
+  '#10b981', '#14b8a6', '#06b6d4', '#22c55e', '#94a3b8',
 ]
 
-type ExpenseValues = { budgeted: string; adjustment: string }
-
 export default function EmergencyFund() {
-  const [expenses, setExpenses] = useState<Record<string, ExpenseValues>>(() =>
-    Object.fromEntries(EXPENSE_ROWS.map((r) => [r.label, { budgeted: '', adjustment: '' }]))
+  const { data, setEmergencyFund } = useAppData()
+  const ef = data.emergencyFund
+  const expenses = ef.expenses  // categoryId -> adjustment string
+  const { coverageMonths, currentBalance, monthlyContribution, annualInterest, startDate } = ef
+
+  // Budgeted amounts from the selected start month
+  const startBudgeted = useMemo(() => {
+    const [year, month] = startDate.split('-')
+    return data.budget.years[year]?.months[month]?.budgeted ?? {}
+  }, [startDate, data.budget.years])
+
+  // All non-income categories, sorted by order
+  const expenseCats = useMemo(
+    () =>
+      [...data.budget.categories]
+        .filter((c) => c.section !== 'income')
+        .sort((a, b) => a.order - b.order),
+    [data.budget.categories]
   )
-  const [coverageMonths, setCoverageMonths] = useState('6')
-  const [currentBalance, setCurrentBalance] = useState('')
-  const [monthlyContribution, setMonthlyContribution] = useState('')
-  const [annualInterest, setAnnualInterest] = useState('')
-  const [startDate, setStartDate] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-  })
 
   const rows = useMemo(
     () =>
-      EXPENSE_ROWS.map((r) => {
-        const budgeted = parseFloat(expenses[r.label].budgeted) || 0
-        const adjustment = parseFloat(expenses[r.label].adjustment) || 0
-        return { ...r, budgeted, adjustment, effective: budgeted + adjustment }
+      expenseCats.map((cat, i) => {
+        const budgeted = parseFloat(startBudgeted[cat.id] ?? '') || 0
+        const adjustment = parseFloat(expenses[cat.id] ?? '') || 0
+        return {
+          id: cat.id,
+          label: cat.label || '(unnamed)',
+          color: EXPENSE_COLORS[i % EXPENSE_COLORS.length],
+          budgeted,
+          adjustment,
+          effective: budgeted + adjustment,
+        }
       }),
-    [expenses]
+    [expenseCats, startBudgeted, expenses]
   )
 
-  const totalBudgeted = useMemo(() => rows.reduce((s, r) => s + r.budgeted, 0), [rows])
+  const totalBudgeted   = useMemo(() => rows.reduce((s, r) => s + r.budgeted,   0), [rows])
   const totalAdjustment = useMemo(() => rows.reduce((s, r) => s + r.adjustment, 0), [rows])
-  const monthlyTotal = useMemo(() => rows.reduce((s, r) => s + r.effective, 0), [rows])
+  const monthlyTotal    = useMemo(() => rows.reduce((s, r) => s + r.effective,  0), [rows])
 
   type ExpenseRow = (typeof rows)[0]
   const columns = useMemo<DataTableColumn<ExpenseRow>[]>(
@@ -55,15 +61,12 @@ export default function EmergencyFund() {
       {
         header: 'Budgeted',
         width: 'w-36',
-        cell: (row) => (
-          <CurrencyInput
-            compact
-            value={expenses[row.label].budgeted}
-            onChange={(v) =>
-              setExpenses((prev) => ({ ...prev, [row.label]: { ...prev[row.label], budgeted: v } }))
-            }
-          />
-        ),
+        cell: (row) =>
+          row.budgeted !== 0 ? (
+            <span className="text-gray-700 dark:text-gray-300 tabular-nums">{fmt(row.budgeted)}</span>
+          ) : (
+            <span className="text-gray-400 dark:text-gray-600">$—</span>
+          ),
         footer: totalBudgeted > 0 ? fmt(totalBudgeted) : '$—',
       },
       {
@@ -72,13 +75,8 @@ export default function EmergencyFund() {
         cell: (row) => (
           <CurrencyInput
             compact
-            value={expenses[row.label].adjustment}
-            onChange={(v) =>
-              setExpenses((prev) => ({
-                ...prev,
-                [row.label]: { ...prev[row.label], adjustment: v },
-              }))
-            }
+            value={expenses[row.id] ?? ''}
+            onChange={(v) => setEmergencyFund({ expenses: { ...expenses, [row.id]: v } })}
           />
         ),
         footer: totalAdjustment !== 0 ? fmt(totalAdjustment) : '$—',
@@ -96,7 +94,7 @@ export default function EmergencyFund() {
         footerPrimary: true,
       },
     ],
-    [expenses, totalBudgeted, totalAdjustment, monthlyTotal]
+    [expenses, setEmergencyFund, totalBudgeted, totalAdjustment, monthlyTotal]
   )
 
   const coverageMonthsNum = parseInt(coverageMonths) || 0
@@ -124,6 +122,13 @@ export default function EmergencyFund() {
       : progressPct >= 50
         ? 'text-amber-600 dark:text-amber-400'
         : ''
+
+  // Format start month for display (e.g. "January 2026")
+  const startMonthLabel = useMemo(() => {
+    const [year, month] = startDate.split('-')
+    const d = new Date(parseInt(year), parseInt(month) - 1)
+    return d.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })
+  }, [startDate])
 
   return (
     <div className="max-w-7xl">
@@ -175,7 +180,7 @@ export default function EmergencyFund() {
               </div>
             ) : (
               <p className="text-xs text-gray-400 dark:text-gray-600">
-                Enter expenses to see breakdown
+                Set budgeted amounts in Monthly Budget to see breakdown
               </p>
             )}
           </div>
@@ -208,7 +213,11 @@ export default function EmergencyFund() {
       </div>
 
       <div className="grid grid-cols-[1fr_296px] gap-8">
-        <DataTable title="Monthly Essential Expenses" rows={rows} columns={columns} />
+        <DataTable
+          title={`Monthly Expenses — ${startMonthLabel}`}
+          rows={rows}
+          columns={columns}
+        />
 
         <div>
           <SectionHeading>Fund Target</SectionHeading>
@@ -219,7 +228,7 @@ export default function EmergencyFund() {
               </label>
               <SuffixInput
                 value={coverageMonths}
-                onChange={setCoverageMonths}
+                onChange={(v) => setEmergencyFund({ coverageMonths: v })}
                 suffix="months"
                 placeholder="6"
                 inputMode="numeric"
@@ -230,13 +239,13 @@ export default function EmergencyFund() {
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Current balance
               </label>
-              <CurrencyInput value={currentBalance} onChange={setCurrentBalance} />
+              <CurrencyInput value={currentBalance} onChange={(v) => setEmergencyFund({ currentBalance: v })} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Monthly contribution
               </label>
-              <CurrencyInput value={monthlyContribution} onChange={setMonthlyContribution} />
+              <CurrencyInput value={monthlyContribution} onChange={(v) => setEmergencyFund({ monthlyContribution: v })} />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
@@ -244,7 +253,7 @@ export default function EmergencyFund() {
               </label>
               <SuffixInput
                 value={annualInterest}
-                onChange={setAnnualInterest}
+                onChange={(v) => setEmergencyFund({ annualInterest: v })}
                 suffix="%"
                 placeholder="0.00"
               />
@@ -256,7 +265,7 @@ export default function EmergencyFund() {
               <input
                 type="month"
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={(e) => setEmergencyFund({ startDate: e.target.value })}
                 className="w-full border border-gray-300 dark:border-gray-700 rounded px-2.5 py-1.5 text-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600"
               />
             </div>

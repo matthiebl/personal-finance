@@ -14,6 +14,7 @@ export type DataTableColumn<R> = {
 }
 
 export type TableRowData = {
+  id?: string
   label: string
   color?: string
 }
@@ -63,7 +64,7 @@ export function DataTable<R extends TableRowData>({
           <tbody>
             {rows.map(row => (
               <tr
-                key={row.label}
+                key={row.id ?? row.label}
                 className="border-b border-gray-100 dark:border-gray-800/60 even:bg-gray-50/50 dark:even:bg-gray-900/30"
               >
                 <td className="py-1.5 pl-4 pr-3">

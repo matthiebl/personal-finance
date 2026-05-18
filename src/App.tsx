@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { AppDataProvider } from './context/AppDataContext'
 import Calculators from './pages/Calculators'
 import DebtSnowball from './pages/DebtSnowball'
 import EmergencyFund from './pages/EmergencyFund'
@@ -9,6 +10,7 @@ import MonthlyData from './pages/MonthlyData'
 import NetWorth from './pages/NetWorth'
 import NotFound from './pages/NotFound'
 import Overview from './pages/Overview'
+import Settings from './pages/Settings'
 import SinkingFunds from './pages/SinkingFunds'
 import Welcome from './pages/Welcome'
 
@@ -45,6 +47,10 @@ const NAV_GROUPS = [
       { to: '/calculators', label: 'Calculators' },
       { to: '/investments', label: 'Investment Calc' },
     ],
+  },
+  {
+    label: 'Account',
+    links: [{ to: '/settings', label: 'Settings' }],
   },
 ]
 
@@ -125,24 +131,27 @@ function App() {
 
   return (
     <BrowserRouter>
-      <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
-        <Sidebar dark={dark} onToggleDark={() => setDark((d) => !d)} />
-        <main className="flex-1 min-h-screen overflow-y-auto px-8 py-8">
-          <Routes>
-            <Route path="/" element={<Welcome />} />
-            <Route path="/overview" element={<Overview />} />
-            <Route path="/networth" element={<NetWorth />} />
-            <Route path="/monthly" element={<MonthlyData />} />
-            <Route path="/emergency-fund" element={<EmergencyFund />} />
-            <Route path="/sinking-funds" element={<SinkingFunds />} />
-            <Route path="/debt-snowball" element={<DebtSnowball />} />
-            <Route path="/home" element={<HomeAffordability />} />
-            <Route path="/calculators" element={<Calculators />} />
-            <Route path="/investments" element={<Investments />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </main>
-      </div>
+      <AppDataProvider>
+        <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
+          <Sidebar dark={dark} onToggleDark={() => setDark((d) => !d)} />
+          <main className="flex-1 min-h-screen overflow-y-auto px-8 py-8">
+            <Routes>
+              <Route path="/" element={<Welcome />} />
+              <Route path="/overview" element={<Overview />} />
+              <Route path="/networth" element={<NetWorth />} />
+              <Route path="/monthly" element={<MonthlyData />} />
+              <Route path="/emergency-fund" element={<EmergencyFund />} />
+              <Route path="/sinking-funds" element={<SinkingFunds />} />
+              <Route path="/debt-snowball" element={<DebtSnowball />} />
+              <Route path="/home" element={<HomeAffordability />} />
+              <Route path="/calculators" element={<Calculators />} />
+              <Route path="/investments" element={<Investments />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </main>
+        </div>
+      </AppDataProvider>
     </BrowserRouter>
   )
 }
