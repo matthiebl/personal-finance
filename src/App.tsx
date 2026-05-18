@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
-import BillCalendar from './pages/BillCalendar'
 import Calculators from './pages/Calculators'
 import DebtSnowball from './pages/DebtSnowball'
 import EmergencyFund from './pages/EmergencyFund'
@@ -29,7 +28,6 @@ const NAV_GROUPS = [
     label: 'Monthly',
     links: [
       { to: '/monthly', label: 'Monthly Budget' },
-      { to: '/bills', label: 'Bill Calendar' },
     ],
   },
   {
@@ -135,8 +133,7 @@ function App() {
             <Route path="/overview" element={<Overview />} />
             <Route path="/networth" element={<NetWorth />} />
             <Route path="/monthly" element={<MonthlyData />} />
-            <Route path="/bills" element={<BillCalendar />} />
-            <Route path="/emergency-fund" element={<EmergencyFund />} />
+<Route path="/emergency-fund" element={<EmergencyFund />} />
             <Route path="/sinking-funds" element={<SinkingFunds />} />
             <Route path="/debt-snowball" element={<DebtSnowball />} />
             <Route path="/home" element={<HomeAffordability />} />
