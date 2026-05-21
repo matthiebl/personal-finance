@@ -3,7 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { DonutChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
-import { CurrencyInput, TextInput } from '../components/inputs'
+import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
+import type { TxSuggestion } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
 import { useAppData } from '../context/AppDataContext'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
@@ -215,14 +216,18 @@ function BudgetTable({
 function TransactionTable({
   transactions,
   sections,
+  suggestions,
   onUpdate,
+  onApplySuggestion,
   onAdd,
   onRemove,
   onCondense,
 }: {
   transactions: Transaction[]
   sections: { label: string; rows: BudgetRow[] }[]
+  suggestions: TxSuggestion[]
   onUpdate: (id: string, field: keyof Transaction, value: string) => void
+  onApplySuggestion: (id: string, patch: { description: string; categoryId: string; tags: string }) => void
   onAdd: () => void
   onRemove: (id: string) => void
   onCondense: () => void
@@ -254,14 +259,14 @@ function TransactionTable({
         <table className="w-full min-w-max text-sm border-collapse">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-800">
-              <th className="text-left py-2 pl-4 pr-3 font-medium text-gray-500 dark:text-gray-400 w-56">
-                Category
+              <th className="text-left py-2 pl-4 pr-3 font-medium text-gray-500 dark:text-gray-400">
+                Description
               </th>
               <th className="text-right py-2 px-3 font-medium text-gray-500 dark:text-gray-400 w-36">
                 Amount
               </th>
-              <th className="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
-                Description
+              <th className="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400 w-56">
+                Category
               </th>
               <th className="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400 w-44">
                 Tags
@@ -276,6 +281,24 @@ function TransactionTable({
                 className="border-b border-gray-100 dark:border-gray-800/60 even:bg-gray-50/50 dark:even:bg-gray-900/30"
               >
                 <td className="py-1.5 pl-4 pr-3">
+                  <DescriptionAutocomplete
+                    compact
+                    value={tx.description}
+                    onChange={(v) => onUpdate(tx.id, 'description', v)}
+                    onSelect={(description, categoryId, tags) =>
+                      onApplySuggestion(tx.id, { description, categoryId, tags })
+                    }
+                    suggestions={suggestions}
+                  />
+                </td>
+                <td className="py-1.5 px-3">
+                  <CurrencyInput
+                    compact
+                    value={tx.amount}
+                    onChange={(v) => onUpdate(tx.id, 'amount', v)}
+                  />
+                </td>
+                <td className="py-1.5 px-3">
                   <select
                     value={tx.categoryId}
                     onChange={(e) => onUpdate(tx.id, 'categoryId', e.target.value)}
@@ -294,21 +317,6 @@ function TransactionTable({
                       </optgroup>
                     ))}
                   </select>
-                </td>
-                <td className="py-1.5 px-3">
-                  <CurrencyInput
-                    compact
-                    value={tx.amount}
-                    onChange={(v) => onUpdate(tx.id, 'amount', v)}
-                  />
-                </td>
-                <td className="py-1.5 px-3">
-                  <TextInput
-                    compact
-                    value={tx.description}
-                    onChange={(v) => onUpdate(tx.id, 'description', v)}
-                    placeholder="Description"
-                  />
                 </td>
                 <td className="py-1.5 px-3">
                   <TextInput
@@ -541,6 +549,32 @@ export default function MonthlyData() {
     updateTransaction(selectedYear, monthStr, id, { [field]: value })
   }
 
+  const categoryLabelById = useMemo(() => {
+    const map: Record<string, string> = {}
+    for (const c of data.budget.categories) map[c.id] = c.label
+    return map
+  }, [data.budget.categories])
+
+  const allTransactionSuggestions = useMemo(() => {
+    const seen = new Map<string, TxSuggestion>()
+    for (const year of Object.values(data.budget.years)) {
+      for (const month of Object.values(year.months)) {
+        if (!month) continue
+        for (const tx of month.transactions) {
+          if (!tx.description.trim()) continue
+          const key = `${tx.description}\0${tx.categoryId}\0${tx.tags ?? ''}`
+          seen.set(key, {
+            description: tx.description,
+            categoryId: tx.categoryId,
+            tags: tx.tags,
+            categoryLabel: categoryLabelById[tx.categoryId] ?? '',
+          })
+        }
+      }
+    }
+    return Array.from(seen.values())
+  }, [data.budget.years, categoryLabelById])
+
   const actuals = useMemo(() => {
     const map: Record<string, number> = {}
     for (const tx of transactions) {
@@ -652,26 +686,26 @@ export default function MonthlyData() {
           </>
         }
       >
-        {/* Year navigation */}
-        <div className="flex items-center gap-3 mt-4 mb-2">
-          <button
-            onClick={() => setYear(-1)}
-            className="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            ← Prev
-          </button>
-          <span className="text-sm font-semibold text-gray-700 dark:text-gray-300 w-12 text-center">
-            {selectedYear}
-          </span>
-          <button
-            onClick={() => setYear(1)}
-            className="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-          >
-            Next →
-          </button>
-        </div>
-        {/* Month pills */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Year + month picker */}
+        <div className="flex items-center gap-2 mt-4 flex-wrap">
+          <div className="flex items-center rounded-full border border-gray-200 dark:border-gray-700">
+            <button
+              onClick={() => setYear(-1)}
+              className="px-2.5 py-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-l-full transition-colors text-sm leading-none"
+            >
+              ‹
+            </button>
+            <span className="px-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums select-none">
+              {selectedYear}
+            </span>
+            <button
+              onClick={() => setYear(1)}
+              className="px-2.5 py-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition-colors text-sm leading-none"
+            >
+              ›
+            </button>
+          </div>
+          <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5" />
           {MONTHS.map((month, i) => (
             <button
               key={month}
@@ -854,7 +888,9 @@ export default function MonthlyData() {
       <TransactionTable
         transactions={transactions}
         sections={sections}
+        suggestions={allTransactionSuggestions}
         onUpdate={handleTxUpdate}
+        onApplySuggestion={(id, patch) => updateTransaction(selectedYear, monthStr, id, patch)}
         onAdd={() => addTransaction(selectedYear, monthStr)}
         onRemove={(id) => removeTransaction(selectedYear, monthStr, id)}
         onCondense={() => condenseTransactions(selectedYear, monthStr)}

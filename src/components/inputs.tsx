@@ -1,4 +1,114 @@
+import { useMemo, useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
+
+export type TxSuggestion = {
+  description: string
+  categoryId: string
+  tags?: string
+  categoryLabel: string
+}
+
+export function DescriptionAutocomplete({
+  value,
+  onChange,
+  onSelect,
+  suggestions,
+  compact = false,
+}: {
+  value: string
+  onChange: (v: string) => void
+  onSelect: (description: string, categoryId: string, tags: string) => void
+  suggestions: TxSuggestion[]
+  compact?: boolean
+}) {
+  const [open, setOpen] = useState(false)
+  const [highlightIdx, setHighlightIdx] = useState(-1)
+
+  const filtered = useMemo(() => {
+    if (!value.trim()) return []
+    const lower = value.toLowerCase()
+    return suggestions.filter((s) => s.description.toLowerCase().includes(lower)).slice(0, 8)
+  }, [value, suggestions])
+
+  const showDropdown = open && filtered.length > 0
+
+  function select(s: TxSuggestion) {
+    onSelect(s.description, s.categoryId, s.tags ?? '')
+    setOpen(false)
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'Escape') {
+      setOpen(false)
+      return
+    }
+    if (!showDropdown) return
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setHighlightIdx((i) => Math.min(i + 1, filtered.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setHighlightIdx((i) => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter' && highlightIdx >= 0) {
+      e.preventDefault()
+      select(filtered[highlightIdx])
+    } else if (e.metaKey) {
+      const n = parseInt(e.key)
+      if (n >= 1 && n <= filtered.length) {
+        e.preventDefault()
+        select(filtered[n - 1])
+      }
+    }
+  }
+
+  return (
+    <div className="relative w-full">
+      <input
+        type="text"
+        placeholder="Description"
+        value={value}
+        onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlightIdx(-1) }}
+        onFocus={() => setOpen(true)}
+        onBlur={() => setOpen(false)}
+        onKeyDown={handleKeyDown}
+        className={`w-full border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600 ${compact ? 'px-2 py-1 text-sm' : 'px-2.5 py-1.5 text-sm'}`}
+      />
+      {showDropdown && (
+        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 min-w-64">
+          <p className="px-3 pt-2.5 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 select-none">
+            Suggestions
+          </p>
+          <ul className="pb-1.5">
+            {filtered.map((s, i) => (
+              <li
+                key={`${s.description}\0${s.categoryId}\0${s.tags ?? ''}`}
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  select(s)
+                }}
+                onMouseEnter={() => setHighlightIdx(i)}
+                className={`mx-1.5 px-2.5 py-2 rounded-lg cursor-pointer flex items-start gap-2.5 ${i === highlightIdx ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'}`}
+              >
+                <span className="mt-0.5 shrink-0 rounded text-center text-xs leading-4 font-medium bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 select-none px-1 py-0.5 whitespace-nowrap">
+                  ⌘{i + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+                    {s.description}
+                  </p>
+                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                    {s.categoryLabel}
+                    {s.tags && <span className="ml-2 text-gray-300 dark:text-gray-600">{s.tags}</span>}
+                  </p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
 
 /**
  * Text input with a $ prefix. Formats to 2 decimal places on blur.

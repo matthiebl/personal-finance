@@ -224,7 +224,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const bm = getOrCreateMonth(prev, year, month)
       const groups = new Map<string, Transaction[]>()
       for (const t of bm.transactions) {
-        const key = `${t.categoryId}\0${t.description}`
+        const sortedTags = (t.tags ?? '').split(/\s+/).filter(Boolean).sort().join(' ')
+        const key = `${t.categoryId}\0${t.description}\0${sortedTags}`
         if (!groups.has(key)) groups.set(key, [])
         groups.get(key)!.push(t)
       }
