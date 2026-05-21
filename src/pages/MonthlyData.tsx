@@ -1,24 +1,27 @@
-import { useMemo, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { useMemo } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { DonutChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, TextInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
 import { useAppData } from '../context/AppDataContext'
-import { fmt, fmtAxis } from '../lib/finance'
+import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, ExpenseType, Transaction } from '../lib/types'
 
 const MONTHS = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
 ]
 
 // Local display type — combines BudgetCategory with per-month budgeted amount
@@ -36,11 +39,20 @@ const TYPE_STYLES: Record<ExpenseType, string> = {
 }
 
 // Stable empty budget month — avoids new object reference every render for missing months
-const EMPTY_MONTH = Object.freeze({ budgeted: {} as Record<string, string>, transactions: [] as Transaction[] })
+const EMPTY_MONTH = Object.freeze({
+  budgeted: {} as Record<string, string>,
+  transactions: [] as Transaction[],
+})
 
 // ─── TypeBadge ───────────────────────────────────────────────────────────────
 
-function TypeBadge({ value, onChange }: { value: ExpenseType; onChange: (v: ExpenseType) => void }) {
+function TypeBadge({
+  value,
+  onChange,
+}: {
+  value: ExpenseType
+  onChange: (v: ExpenseType) => void
+}) {
   return (
     <select
       value={value}
@@ -84,8 +96,8 @@ function BudgetTable({
   return (
     <div>
       <SectionHeading>{title}</SectionHeading>
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm border-collapse">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto">
+        <table className="w-full min-w-max text-sm border-collapse">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-800">
               <th className="text-left py-2 pl-4 pr-2 font-medium text-gray-500 dark:text-gray-400">
@@ -149,10 +161,14 @@ function BudgetTable({
                     />
                   </td>
                   <td className="py-1.5 px-2 text-right tabular-nums text-gray-600 dark:text-gray-400">
-                    {actual > 0 ? fmt(actual) : <span className="text-gray-300 dark:text-gray-700">$—</span>}
+                    {actual > 0 ? (
+                      fmtCents(actual)
+                    ) : (
+                      <span className="text-gray-300 dark:text-gray-700">$—</span>
+                    )}
                   </td>
                   <td className={`py-1.5 pl-2 pr-4 text-right tabular-nums ${diffColor}`}>
-                    {hasValues ? fmt(diff) : '$—'}
+                    {hasValues ? fmtCents(diff) : '$—'}
                   </td>
                   <td className="py-1.5 pr-1">
                     <button
@@ -171,17 +187,21 @@ function BudgetTable({
               <td className="py-2 pl-4 pr-2 text-gray-700 dark:text-gray-200">Total</td>
               {hasType && <td />}
               <td className="py-2 px-2 text-right tabular-nums text-gray-500 dark:text-gray-400">
-                {totalBudgeted > 0 ? fmt(totalBudgeted) : '$—'}
+                {totalBudgeted > 0 ? fmtCents(totalBudgeted) : '$—'}
               </td>
               <td className="py-2 px-2 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                {totalActual > 0 ? fmt(totalActual) : '$—'}
+                {totalActual > 0 ? fmtCents(totalActual) : '$—'}
               </td>
-              <td className={`py-2 pl-2 pr-4 text-right tabular-nums ${
-                hasTotals
-                  ? totalDiff >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
-                  : 'text-gray-700 dark:text-gray-200'
-              }`}>
-                {hasTotals ? fmt(totalDiff) : '$—'}
+              <td
+                className={`py-2 pl-2 pr-4 text-right tabular-nums ${
+                  hasTotals
+                    ? totalDiff >= 0
+                      ? 'text-green-600 dark:text-green-400'
+                      : 'text-red-500 dark:text-red-400'
+                    : 'text-gray-700 dark:text-gray-200'
+                }`}
+              >
+                {hasTotals ? fmtCents(totalDiff) : '$—'}
               </td>
               <td />
             </tr>
@@ -219,7 +239,15 @@ function TransactionTable({
   onRemove: (id: string) => void
   onCondense: () => void
 }) {
-  const totalAmount = transactions.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
+  const incomeCatIds = new Set(
+    sections.find((s) => s.label === 'Income')?.rows.map((r) => r.id) ?? []
+  )
+  const incomeTotal = transactions
+    .filter((t) => incomeCatIds.has(t.categoryId))
+    .reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
+  const expensesTotal = transactions
+    .filter((t) => !incomeCatIds.has(t.categoryId))
+    .reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
 
   return (
     <div>
@@ -234,8 +262,8 @@ function TransactionTable({
           Condense
         </button>
       </div>
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm border-collapse">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto">
+        <table className="w-full min-w-max text-sm border-collapse">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-800">
               <th className="text-left py-2 pl-4 pr-3 font-medium text-gray-500 dark:text-gray-400 w-56">
@@ -265,9 +293,13 @@ function TransactionTable({
                     <option value="">— Category —</option>
                     {sections.map(({ label, rows }) => (
                       <optgroup key={label} label={label}>
-                        {rows.filter((r) => r.label.trim()).map((r) => (
-                          <option key={r.id} value={r.id}>{r.label}</option>
-                        ))}
+                        {rows
+                          .filter((r) => r.label.trim())
+                          .map((r) => (
+                            <option key={r.id} value={r.id}>
+                              {r.label}
+                            </option>
+                          ))}
                       </optgroup>
                     ))}
                   </select>
@@ -300,9 +332,20 @@ function TransactionTable({
           </tbody>
           <tfoot>
             <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold">
-              <td className="py-2 pl-4 pr-3 text-gray-700 dark:text-gray-200">Total</td>
+              <td className="py-2 pl-4 pr-3 text-gray-500 dark:text-gray-400 font-medium">
+                Income
+              </td>
+              <td className="py-2 px-3 text-right tabular-nums text-green-600 dark:text-green-400">
+                {incomeTotal !== 0 ? fmtCents(incomeTotal) : '$—'}
+              </td>
+              <td colSpan={2} />
+            </tr>
+            <tr className="bg-gray-100 dark:bg-gray-800/50 font-semibold">
+              <td className="py-2 pl-4 pr-3 text-gray-500 dark:text-gray-400 font-medium">
+                Expenses
+              </td>
               <td className="py-2 px-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
-                {totalAmount !== 0 ? fmt(totalAmount) : '$—'}
+                {expensesTotal !== 0 ? fmtCents(expensesTotal) : '$—'}
               </td>
               <td colSpan={2} />
             </tr>
@@ -340,15 +383,17 @@ function BvATooltip({
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
       <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
-      {payload.filter((p) => p.value > 0).map((p) => (
-        <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
-            <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
+      {payload
+        .filter((p) => p.value > 0)
+        .map((p) => (
+          <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
+              <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
+            </div>
+            <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
           </div>
-          <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
-        </div>
-      ))}
+        ))}
     </div>
   )
 }
@@ -370,10 +415,26 @@ function BudgetComparisonChart({
   }
   return (
     <ResponsiveContainer width="100%" height={200}>
-      <BarChart data={data} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} barCategoryGap="28%" barGap={3}>
+      <BarChart
+        data={data}
+        margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+        barCategoryGap="28%"
+        barGap={3}
+      >
         <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="name" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={fmtAxis} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={48} />
+        <XAxis
+          dataKey="name"
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tickFormatter={fmtAxis}
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          width={48}
+        />
         <Tooltip content={<BvATooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
         <Bar dataKey="budgeted" fill="#6366f1" radius={[3, 3, 0, 0]} name="Budgeted" />
         <Bar dataKey="actual" fill="#10b981" radius={[3, 3, 0, 0]} name="Actual" />
@@ -409,9 +470,31 @@ export default function MonthlyData() {
   } = useAppData()
 
   const now = new Date()
-  const [selectedYear, setSelectedYear] = useState(() => String(now.getFullYear()))
-  const [selectedMonthIdx, setSelectedMonthIdx] = useState(() => now.getMonth())
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedYear = searchParams.get('year') ?? String(now.getFullYear())
+  const monthParam = searchParams.get('month')?.toLowerCase()
+  const monthParamIdx = MONTHS.findIndex((m) => m.slice(0, 3).toLowerCase() === monthParam)
+  const selectedMonthIdx = monthParamIdx !== -1 ? monthParamIdx : now.getMonth()
   const monthStr = String(selectedMonthIdx + 1).padStart(2, '0')
+
+  function setYear(delta: number) {
+    setSearchParams(
+      (p) => {
+        p.set('year', String(parseInt(selectedYear) + delta))
+        return p
+      },
+      { replace: true }
+    )
+  }
+  function setMonthIdx(i: number) {
+    setSearchParams(
+      (p) => {
+        p.set('month', MONTHS[i].slice(0, 3).toLowerCase())
+        return p
+      },
+      { replace: true }
+    )
+  }
 
   const budgetMonth = data.budget.years[selectedYear]?.months[monthStr] ?? EMPTY_MONTH
 
@@ -421,15 +504,27 @@ export default function MonthlyData() {
     [data.budget.categories]
   )
 
-  const incomeCats  = useMemo(() => sortedCats.filter((c) => c.section === 'income'),   [sortedCats])
-  const fixedCats   = useMemo(() => sortedCats.filter((c) => c.section === 'fixed'),    [sortedCats])
-  const varCats     = useMemo(() => sortedCats.filter((c) => c.section === 'variable'), [sortedCats])
-  const savingsCats = useMemo(() => sortedCats.filter((c) => c.section === 'savings'),  [sortedCats])
+  const incomeCats = useMemo(() => sortedCats.filter((c) => c.section === 'income'), [sortedCats])
+  const fixedCats = useMemo(() => sortedCats.filter((c) => c.section === 'fixed'), [sortedCats])
+  const varCats = useMemo(() => sortedCats.filter((c) => c.section === 'variable'), [sortedCats])
+  const savingsCats = useMemo(() => sortedCats.filter((c) => c.section === 'savings'), [sortedCats])
 
-  const incomeRows  = useMemo(() => toRows(incomeCats,  budgetMonth.budgeted), [incomeCats,  budgetMonth.budgeted])
-  const fixedRows   = useMemo(() => toRows(fixedCats,   budgetMonth.budgeted), [fixedCats,   budgetMonth.budgeted])
-  const varRows     = useMemo(() => toRows(varCats,     budgetMonth.budgeted), [varCats,     budgetMonth.budgeted])
-  const savingsRows = useMemo(() => toRows(savingsCats, budgetMonth.budgeted), [savingsCats, budgetMonth.budgeted])
+  const incomeRows = useMemo(
+    () => toRows(incomeCats, budgetMonth.budgeted),
+    [incomeCats, budgetMonth.budgeted]
+  )
+  const fixedRows = useMemo(
+    () => toRows(fixedCats, budgetMonth.budgeted),
+    [fixedCats, budgetMonth.budgeted]
+  )
+  const varRows = useMemo(
+    () => toRows(varCats, budgetMonth.budgeted),
+    [varCats, budgetMonth.budgeted]
+  )
+  const savingsRows = useMemo(
+    () => toRows(savingsCats, budgetMonth.budgeted),
+    [savingsCats, budgetMonth.budgeted]
+  )
 
   // Shared update handler — routes field to correct context call
   function handleCategoryUpdate(id: string, field: string, value: string) {
@@ -458,21 +553,47 @@ export default function MonthlyData() {
     return map
   }, [transactions])
 
-  const totalIncomeActual   = useMemo(() => incomeRows.reduce((s, r)  => s + (actuals[r.id] ?? 0), 0), [incomeRows,  actuals])
-  const totalFixedActual    = useMemo(() => fixedRows.reduce((s, r)   => s + (actuals[r.id] ?? 0), 0), [fixedRows,   actuals])
-  const totalVariableActual = useMemo(() => varRows.reduce((s, r)     => s + (actuals[r.id] ?? 0), 0), [varRows,     actuals])
-  const totalSavingsActual  = useMemo(() => savingsRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0), [savingsRows, actuals])
+  const totalIncomeActual = useMemo(
+    () => incomeRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0),
+    [incomeRows, actuals]
+  )
+  const totalFixedActual = useMemo(
+    () => fixedRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0),
+    [fixedRows, actuals]
+  )
+  const totalVariableActual = useMemo(
+    () => varRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0),
+    [varRows, actuals]
+  )
+  const totalSavingsActual = useMemo(
+    () => savingsRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0),
+    [savingsRows, actuals]
+  )
   const totalExpensesActual = totalFixedActual + totalVariableActual
 
-  const totalIncomeBudgeted   = useMemo(() => incomeRows.reduce((s, r)  => s + (parseFloat(r.budgeted) || 0), 0), [incomeRows])
-  const totalFixedBudgeted    = useMemo(() => fixedRows.reduce((s, r)   => s + (parseFloat(r.budgeted) || 0), 0), [fixedRows])
-  const totalVariableBudgeted = useMemo(() => varRows.reduce((s, r)     => s + (parseFloat(r.budgeted) || 0), 0), [varRows])
-  const totalSavingsBudgeted  = useMemo(() => savingsRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0), [savingsRows])
+  const totalIncomeBudgeted = useMemo(
+    () => incomeRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0),
+    [incomeRows]
+  )
+  const totalFixedBudgeted = useMemo(
+    () => fixedRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0),
+    [fixedRows]
+  )
+  const totalVariableBudgeted = useMemo(
+    () => varRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0),
+    [varRows]
+  )
+  const totalSavingsBudgeted = useMemo(
+    () => savingsRows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0),
+    [savingsRows]
+  )
 
   const surplus = totalIncomeActual - totalExpensesActual - totalSavingsActual
 
   const { needsActual, wantsActual, debtActual } = useMemo(() => {
-    let needsActual = 0, wantsActual = 0, debtActual = 0
+    let needsActual = 0,
+      wantsActual = 0,
+      debtActual = 0
     for (const row of [...fixedRows, ...varRows]) {
       const a = actuals[row.id] ?? 0
       if (row.expenseType === 'need') needsActual += a
@@ -482,39 +603,45 @@ export default function MonthlyData() {
     return { needsActual, wantsActual, debtActual }
   }, [fixedRows, varRows, actuals])
 
-  const pctNeeds   = totalIncomeActual > 0 ? (needsActual         / totalIncomeActual) * 100 : 0
-  const pctWants   = totalIncomeActual > 0 ? (wantsActual         / totalIncomeActual) * 100 : 0
-  const pctSavings = totalIncomeActual > 0 ? (totalSavingsActual  / totalIncomeActual) * 100 : 0
+  const pctNeeds = totalIncomeActual > 0 ? (needsActual / totalIncomeActual) * 100 : 0
+  const pctWants = totalIncomeActual > 0 ? (wantsActual / totalIncomeActual) * 100 : 0
+  const pctSavings = totalIncomeActual > 0 ? (totalSavingsActual / totalIncomeActual) * 100 : 0
 
-  const surplusColor    = surplus > 0 ? 'text-green-600 dark:text-green-400' : surplus < 0 ? 'text-red-500 dark:text-red-400' : ''
+  const surplusColor =
+    surplus > 0
+      ? 'text-green-600 dark:text-green-400'
+      : surplus < 0
+        ? 'text-red-500 dark:text-red-400'
+        : ''
   const savingsPctColor = pctSavings >= 20 ? 'text-green-600 dark:text-green-400' : ''
 
   const donutSegments = useMemo(() => {
     const segs = []
-    if (needsActual > 0)      segs.push({ label: 'Needs',   value: needsActual,        color: '#6366f1' })
-    if (wantsActual > 0)      segs.push({ label: 'Wants',   value: wantsActual,        color: '#8b5cf6' })
-    if (debtActual > 0)       segs.push({ label: 'Debt',    value: debtActual,         color: '#f97316' })
-    if (totalSavingsActual > 0) segs.push({ label: 'Savings', value: totalSavingsActual, color: '#10b981' })
-    if (surplus > 0)          segs.push({ label: 'Surplus', value: surplus,            color: '#94a3b8' })
+    if (needsActual > 0) segs.push({ label: 'Needs', value: needsActual, color: '#6366f1' })
+    if (wantsActual > 0) segs.push({ label: 'Wants', value: wantsActual, color: '#8b5cf6' })
+    if (debtActual > 0) segs.push({ label: 'Debt', value: debtActual, color: '#f97316' })
+    if (totalSavingsActual > 0)
+      segs.push({ label: 'Savings', value: totalSavingsActual, color: '#10b981' })
+    if (surplus > 0) segs.push({ label: 'Surplus', value: surplus, color: '#94a3b8' })
     return segs
   }, [needsActual, wantsActual, debtActual, totalSavingsActual, surplus])
 
   const comparisonData = [
-    { name: 'Income',   budgeted: totalIncomeBudgeted,   actual: totalIncomeActual },
-    { name: 'Fixed',    budgeted: totalFixedBudgeted,    actual: totalFixedActual },
+    { name: 'Income', budgeted: totalIncomeBudgeted, actual: totalIncomeActual },
+    { name: 'Fixed', budgeted: totalFixedBudgeted, actual: totalFixedActual },
     { name: 'Variable', budgeted: totalVariableBudgeted, actual: totalVariableActual },
-    { name: 'Savings',  budgeted: totalSavingsBudgeted,  actual: totalSavingsActual },
+    { name: 'Savings', budgeted: totalSavingsBudgeted, actual: totalSavingsActual },
   ]
 
   const sections = [
-    { label: 'Income',               rows: incomeRows },
-    { label: 'Fixed Expenses',       rows: fixedRows },
-    { label: 'Variable Expenses',    rows: varRows },
+    { label: 'Income', rows: incomeRows },
+    { label: 'Fixed Expenses', rows: fixedRows },
+    { label: 'Variable Expenses', rows: varRows },
     { label: 'Savings & Investments', rows: savingsRows },
   ]
 
   return (
-    <div className="max-w-7xl">
+    <div className="max-w-384">
       <PageHeader
         title="Monthly Budget"
         subtitle={
@@ -522,14 +649,15 @@ export default function MonthlyData() {
             Track income, expenses, and savings for{' '}
             <span className="font-medium text-gray-700 dark:text-gray-300">
               {MONTHS[selectedMonthIdx]} {selectedYear}
-            </span>.
+            </span>
+            .
           </>
         }
       >
         {/* Year navigation */}
         <div className="flex items-center gap-3 mt-4 mb-2">
           <button
-            onClick={() => setSelectedYear((y) => String(parseInt(y) - 1))}
+            onClick={() => setYear(-1)}
             className="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             ← Prev
@@ -538,7 +666,7 @@ export default function MonthlyData() {
             {selectedYear}
           </span>
           <button
-            onClick={() => setSelectedYear((y) => String(parseInt(y) + 1))}
+            onClick={() => setYear(1)}
             className="text-xs px-2.5 py-1 rounded border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
           >
             Next →
@@ -549,7 +677,7 @@ export default function MonthlyData() {
           {MONTHS.map((month, i) => (
             <button
               key={month}
-              onClick={() => setSelectedMonthIdx(i)}
+              onClick={() => setMonthIdx(i)}
               className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
                 i === selectedMonthIdx
                   ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium'
@@ -566,10 +694,20 @@ export default function MonthlyData() {
       <HeroStats
         cols={4}
         stats={[
-          { label: 'Total Income',   value: totalIncomeActual   > 0 ? fmt(totalIncomeActual)   : '$—' },
-          { label: 'Total Expenses', value: totalExpensesActual > 0 ? fmt(totalExpensesActual) : '$—' },
-          { label: 'Total Savings',  value: totalSavingsActual  > 0 ? fmt(totalSavingsActual)  : '$—' },
-          { label: 'Surplus', value: totalIncomeActual > 0 ? fmt(surplus) : '$—', colorClass: surplusColor },
+          { label: 'Total Income', value: totalIncomeActual > 0 ? fmt(totalIncomeActual) : '$—' },
+          {
+            label: 'Total Expenses',
+            value: totalExpensesActual > 0 ? fmt(totalExpensesActual) : '$—',
+          },
+          {
+            label: 'Total Savings',
+            value: totalSavingsActual > 0 ? fmt(totalSavingsActual) : '$—',
+          },
+          {
+            label: 'Surplus',
+            value: totalIncomeActual > 0 ? fmt(surplus) : '$—',
+            colorClass: surplusColor,
+          },
         ]}
       />
 
@@ -577,14 +715,18 @@ export default function MonthlyData() {
       <HeroStats
         cols={3}
         stats={[
-          { label: '% Needs',   value: totalIncomeActual > 0 ? `${pctNeeds.toFixed(1)}%`   : '—%' },
-          { label: '% Wants',   value: totalIncomeActual > 0 ? `${pctWants.toFixed(1)}%`   : '—%' },
-          { label: '% Savings', value: totalIncomeActual > 0 ? `${pctSavings.toFixed(1)}%` : '—%', colorClass: savingsPctColor },
+          { label: '% Needs', value: totalIncomeActual > 0 ? `${pctNeeds.toFixed(1)}%` : '—%' },
+          { label: '% Wants', value: totalIncomeActual > 0 ? `${pctWants.toFixed(1)}%` : '—%' },
+          {
+            label: '% Savings',
+            value: totalIncomeActual > 0 ? `${pctSavings.toFixed(1)}%` : '—%',
+            colorClass: savingsPctColor,
+          },
         ]}
       />
 
       {/* Charts */}
-      <div className="grid grid-cols-[2fr_1fr] gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6 mb-8">
         <div>
           <SectionHeading>Budget vs Actual</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
@@ -615,11 +757,16 @@ export default function MonthlyData() {
                 {donutSegments.map((s) => (
                   <div key={s.label} className="flex items-center justify-between text-xs">
                     <div className="flex items-center gap-1.5">
-                      <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+                      <span
+                        className="w-2 h-2 rounded-sm shrink-0"
+                        style={{ backgroundColor: s.color }}
+                      />
                       <span className="text-gray-600 dark:text-gray-400">{s.label}</span>
                     </div>
                     <span className="text-gray-500 dark:text-gray-400 tabular-nums">
-                      {totalIncomeActual > 0 ? `${((s.value / totalIncomeActual) * 100).toFixed(0)}%` : '—'}
+                      {totalIncomeActual > 0
+                        ? `${((s.value / totalIncomeActual) * 100).toFixed(0)}%`
+                        : '—'}
                     </span>
                   </div>
                 ))}
@@ -630,7 +777,7 @@ export default function MonthlyData() {
       </div>
 
       {/* Budget tables — 2-column grid */}
-      <div className="grid grid-cols-2 gap-6 mb-6">
+      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 mb-6">
         <BudgetTable
           title="Income"
           rows={incomeRows}

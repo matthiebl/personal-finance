@@ -9,14 +9,22 @@ import { useAppData } from '../context/AppDataContext'
 import { calcMonthsToGoal, fmt } from '../lib/finance'
 
 const EXPENSE_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f97316',
-  '#10b981', '#14b8a6', '#06b6d4', '#22c55e', '#94a3b8',
+  '#6366f1',
+  '#8b5cf6',
+  '#ec4899',
+  '#f43f5e',
+  '#f97316',
+  '#10b981',
+  '#14b8a6',
+  '#06b6d4',
+  '#22c55e',
+  '#94a3b8',
 ]
 
 export default function EmergencyFund() {
   const { data, setEmergencyFund } = useAppData()
   const ef = data.emergencyFund
-  const expenses = ef.expenses  // categoryId -> adjustment string
+  const expenses = ef.expenses // categoryId -> adjustment string
   const { coverageMonths, currentBalance, monthlyContribution, annualInterest, startDate } = ef
 
   // Budgeted amounts from the selected start month
@@ -51,9 +59,9 @@ export default function EmergencyFund() {
     [expenseCats, startBudgeted, expenses]
   )
 
-  const totalBudgeted   = useMemo(() => rows.reduce((s, r) => s + r.budgeted,   0), [rows])
+  const totalBudgeted = useMemo(() => rows.reduce((s, r) => s + r.budgeted, 0), [rows])
   const totalAdjustment = useMemo(() => rows.reduce((s, r) => s + r.adjustment, 0), [rows])
-  const monthlyTotal    = useMemo(() => rows.reduce((s, r) => s + r.effective,  0), [rows])
+  const monthlyTotal = useMemo(() => rows.reduce((s, r) => s + r.effective, 0), [rows])
 
   type ExpenseRow = (typeof rows)[0]
   const columns = useMemo<DataTableColumn<ExpenseRow>[]>(
@@ -63,7 +71,9 @@ export default function EmergencyFund() {
         width: 'w-36',
         cell: (row) =>
           row.budgeted !== 0 ? (
-            <span className="text-gray-700 dark:text-gray-300 tabular-nums">{fmt(row.budgeted)}</span>
+            <span className="text-gray-700 dark:text-gray-300 tabular-nums">
+              {fmt(row.budgeted)}
+            </span>
           ) : (
             <span className="text-gray-400 dark:text-gray-600">$—</span>
           ),
@@ -131,7 +141,7 @@ export default function EmergencyFund() {
   }, [startDate])
 
   return (
-    <div className="max-w-7xl">
+    <div className="max-w-384">
       <PageHeader
         title="Emergency Fund"
         subtitle="Calculate your target emergency fund and track your progress toward it."
@@ -154,7 +164,7 @@ export default function EmergencyFund() {
         ]}
       />
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div>
           <SectionHeading>Expense Breakdown</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex gap-6 items-center">
@@ -212,14 +222,15 @@ export default function EmergencyFund() {
         </div>
       </div>
 
-      <div className="grid grid-cols-[1fr_296px] gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-[1fr_296px] gap-8">
         <DataTable
           title={`Monthly Expenses — ${startMonthLabel}`}
           rows={rows}
           columns={columns}
+          className="order-2 xl:order-1"
         />
 
-        <div>
+        <div className="order-1 xl:order-2">
           <SectionHeading>Fund Target</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 space-y-4">
             <div>
@@ -239,13 +250,19 @@ export default function EmergencyFund() {
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Current balance
               </label>
-              <CurrencyInput value={currentBalance} onChange={(v) => setEmergencyFund({ currentBalance: v })} />
+              <CurrencyInput
+                value={currentBalance}
+                onChange={(v) => setEmergencyFund({ currentBalance: v })}
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                 Monthly contribution
               </label>
-              <CurrencyInput value={monthlyContribution} onChange={(v) => setEmergencyFund({ monthlyContribution: v })} />
+              <CurrencyInput
+                value={monthlyContribution}
+                onChange={(v) => setEmergencyFund({ monthlyContribution: v })}
+              />
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">

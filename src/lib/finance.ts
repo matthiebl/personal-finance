@@ -3,6 +3,11 @@ export function fmt(n: number): string {
   return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-AU')
 }
 
+export function fmtCents(n: number): string {
+  const abs = Math.abs(n)
+  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
 export function fmtAxis(n: number): string {
   if (Math.abs(n) >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`
   if (Math.abs(n) >= 1_000) return `$${(n / 1_000).toFixed(0)}k`

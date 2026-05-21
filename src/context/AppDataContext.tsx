@@ -206,19 +206,19 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const bm = getOrCreateMonth(prev, year, month)
       const groups = new Map<string, Transaction[]>()
       for (const t of bm.transactions) {
-        const key = t.categoryId
+        const key = `${t.categoryId}\0${t.description}`
         if (!groups.has(key)) groups.set(key, [])
         groups.get(key)!.push(t)
       }
       const condensed: Transaction[] = []
-      for (const [categoryId, txs] of groups) {
+      for (const txs of groups.values()) {
         const sum = txs.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
         if (sum === 0) continue
         condensed.push({
           id: crypto.randomUUID(),
-          categoryId,
+          categoryId: txs[0].categoryId,
           amount: sum.toFixed(2),
-          description: `Condensed (${txs.length})`,
+          description: txs[0].description,
         })
       }
       const next = setMonth(prev, year, month, { ...bm, transactions: condensed })

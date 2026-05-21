@@ -149,7 +149,7 @@ export default function Calculators() {
         subtitle="A collection of useful financial calculators."
       />
 
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {CALCULATORS.map((calc) => (
           <CalculatorCard key={calc.name} calc={calc} />
         ))}

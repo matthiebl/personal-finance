@@ -85,7 +85,7 @@ export default function SinkingFunds() {
         : 'bg-blue-500 dark:bg-blue-400'
 
   return (
-    <div className="max-w-7xl">
+    <div className="max-w-384">
       <PageHeader
         title="Sinking Funds"
         subtitle="Plan and track savings for known future expenses."
@@ -103,7 +103,7 @@ export default function SinkingFunds() {
         ]}
       />
 
-      <div className="grid grid-cols-2 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
         <div className="flex flex-col">
           <SectionHeading>Fund Breakdown</SectionHeading>
           <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4 flex gap-6 items-center">
@@ -148,7 +148,7 @@ export default function SinkingFunds() {
                 Remaining
               </div>
             </div>
-            <div className="flex-1 min-h-0">
+            <div className="flex-1 min-h-48">
               <FundsBarChart funds={chartFunds} height="100%" />
             </div>
           </div>
@@ -157,8 +157,8 @@ export default function SinkingFunds() {
 
       <div>
         <SectionHeading>Sinking Funds</SectionHeading>
-        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-          <table className="w-full text-sm border-collapse">
+        <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto">
+          <table className="w-full min-w-max text-sm border-collapse">
             <thead>
               <tr className="border-b border-gray-200 dark:border-gray-800">
                 <th className="py-2 pl-4 w-8" />
@@ -289,7 +289,10 @@ export default function SinkingFunds() {
                 { label: 'Deposits', color: '#8b5cf6' },
                 { label: 'Interest', color: '#10b981' },
               ].map((l) => (
-                <div key={l.label} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <div
+                  key={l.label}
+                  className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
+                >
                   <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: l.color }} />
                   {l.label}
                 </div>
@@ -318,11 +321,7 @@ export default function SinkingFunds() {
               startDate={startDate}
             />
           ) : (
-            <GrowthBarChart
-              initialBalance={0}
-              monthlyContribution={0}
-              annualRate={0}
-            />
+            <GrowthBarChart initialBalance={0} monthlyContribution={0} annualRate={0} />
           )}
         </div>
       </div>

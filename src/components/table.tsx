@@ -25,6 +25,7 @@ export function DataTable<R extends TableRowData>({
   columns,
   rowHeader = 'Category',
   footerLabel = 'Total',
+  className = '',
 }: {
   title?: string
   rows: R[]
@@ -33,19 +34,20 @@ export function DataTable<R extends TableRowData>({
   rowHeader?: string
   /** Label shown in the totals row. Defaults to 'Total'. */
   footerLabel?: string
+  className?: string
 }) {
-  const hasFooter = columns.some(c => c.footer !== undefined)
+  const hasFooter = columns.some((c) => c.footer !== undefined)
   const lastColIndex = columns.length - 1
 
   return (
-    <div>
+    <div className={className}>
       {title && (
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
           {title}
         </p>
       )}
-      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden">
-        <table className="w-full text-sm border-collapse">
+      <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto">
+        <table className="w-full min-w-max text-sm border-collapse">
           <thead>
             <tr className="border-b border-gray-200 dark:border-gray-800">
               <th className="text-left py-2 pl-4 pr-3 font-medium text-gray-500 dark:text-gray-400">
@@ -62,7 +64,7 @@ export function DataTable<R extends TableRowData>({
             </tr>
           </thead>
           <tbody>
-            {rows.map(row => (
+            {rows.map((row) => (
               <tr
                 key={row.id ?? row.label}
                 className="border-b border-gray-100 dark:border-gray-800/60 even:bg-gray-50/50 dark:even:bg-gray-900/30"
