@@ -14,6 +14,7 @@ export type Transaction = {
   categoryId: string
   amount: string
   description: string
+  tags?: string
 }
 
 export type BudgetMonth = {

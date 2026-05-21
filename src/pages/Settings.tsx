@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader, SectionHeading } from '../components/layout'
 import { useAppData } from '../context/AppDataContext'
+import type { BudgetCategory } from '../lib/types'
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`
@@ -13,10 +14,27 @@ function formatMonthKey(key: string): string {
   return date.toLocaleDateString('en-AU', { month: 'long', year: 'numeric' })
 }
 
-export default function Settings() {
-  const { data, setStorageMode, storageUsage, condenseTransactions } = useAppData()
+const SECTIONS = ['income', 'fixed', 'variable', 'savings'] as const
+const SECTION_LABELS: Record<string, string> = {
+  income: 'Income',
+  fixed: 'Fixed Expenses',
+  variable: 'Variable Expenses',
+  savings: 'Savings & Investments',
+}
 
-  // Collect distinct month keys across all years for the condense filter
+type PendingDelete = {
+  id: string
+  label: string
+  budgetCount: number
+  transactionCount: number
+}
+
+export default function Settings() {
+  const { data, setStorageMode, storageUsage, condenseTransactions, removeCategory, reorderCategories } =
+    useAppData()
+
+  // ─── Condense ─────────────────────────────────────────────────────────────
+
   const monthKeys: string[] = []
   for (const [year, yearData] of Object.entries(data.budget.years)) {
     for (const month of Object.keys(yearData.months)) {
@@ -52,19 +70,68 @@ export default function Settings() {
       ? Math.min((storageUsage.usedBytes / storageUsage.totalBytes) * 100, 100)
       : null
 
+  // ─── Categories ───────────────────────────────────────────────────────────
+
+  const sortedCats = useMemo(
+    () => [...data.budget.categories].sort((a, b) => a.order - b.order),
+    [data.budget.categories]
+  )
+
+  const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
+  const dragId = useRef<string | null>(null)
+  const [dragOverId, setDragOverId] = useState<string | null>(null)
+
+  function countCategoryUsage(id: string) {
+    let budgetCount = 0
+    let transactionCount = 0
+    for (const yearData of Object.values(data.budget.years)) {
+      for (const month of Object.values(yearData.months)) {
+        if (!month) continue
+        if (month.budgeted[id]) budgetCount++
+        transactionCount += month.transactions.filter((t) => t.categoryId === id).length
+      }
+    }
+    return { budgetCount, transactionCount }
+  }
+
+  function handleDeleteClick(cat: BudgetCategory) {
+    const { budgetCount, transactionCount } = countCategoryUsage(cat.id)
+    setPendingDelete({ id: cat.id, label: cat.label, budgetCount, transactionCount })
+  }
+
+  function handleDrop(targetId: string, sectionCats: BudgetCategory[]) {
+    const dragged = dragId.current
+    setDragOverId(null)
+    dragId.current = null
+    if (!dragged || dragged === targetId) return
+    const ids = sectionCats.map((c) => c.id)
+    const fromIdx = ids.indexOf(dragged)
+    const toIdx = ids.indexOf(targetId)
+    if (fromIdx === -1 || toIdx === -1) return
+    const newIds = [...ids]
+    newIds.splice(fromIdx, 1)
+    newIds.splice(toIdx, 0, dragged)
+    reorderCategories(newIds)
+  }
+
+  function buildDeleteMessage({ budgetCount, transactionCount }: PendingDelete) {
+    const parts: string[] = []
+    if (budgetCount > 0) parts.push(`${budgetCount} budget month${budgetCount !== 1 ? 's' : ''}`)
+    if (transactionCount > 0)
+      parts.push(`${transactionCount} transaction${transactionCount !== 1 ? 's' : ''}`)
+    if (parts.length === 0)
+      return 'This category has no associated data and can be safely deleted.'
+    return `This category is referenced in ${parts.join(' and ')}. The data will remain but the category will no longer appear.`
+  }
+
   return (
     <div className="max-w-2xl">
-      <PageHeader
-        title="Settings"
-        subtitle="Manage how your data is stored."
-      />
+      <PageHeader title="Settings" subtitle="Manage how your data is stored." />
 
       {/* Storage mode */}
       <div className="mb-8">
         <SectionHeading>Storage</SectionHeading>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
-
-          {/* Mode toggle */}
           <div className="p-4">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Storage mode</p>
             <div className="space-y-2">
@@ -107,7 +174,6 @@ export default function Settings() {
             </div>
           </div>
 
-          {/* Usage */}
           <div className="p-4">
             <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Storage usage</p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
@@ -129,6 +195,84 @@ export default function Settings() {
               </div>
             )}
           </div>
+        </div>
+      </div>
+
+      {/* Budget Categories */}
+      <div className="mb-8">
+        <SectionHeading>Budget Categories</SectionHeading>
+        <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
+          Drag to reorder. Changes apply across all months.
+        </p>
+        <div className="space-y-4">
+          {SECTIONS.map((section) => {
+            const cats = sortedCats.filter((c) => c.section === section)
+            return (
+              <div key={section}>
+                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1.5">
+                  {SECTION_LABELS[section]}
+                </p>
+                <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
+                  {cats.length === 0 ? (
+                    <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-600">
+                      No categories
+                    </p>
+                  ) : (
+                    cats.map((cat) => (
+                      <div
+                        key={cat.id}
+                        draggable
+                        onDragStart={() => { dragId.current = cat.id }}
+                        onDragOver={(e) => { e.preventDefault(); setDragOverId(cat.id) }}
+                        onDragLeave={() => setDragOverId((prev) => (prev === cat.id ? null : prev))}
+                        onDrop={() => handleDrop(cat.id, cats)}
+                        onDragEnd={() => { dragId.current = null; setDragOverId(null) }}
+                        className={`flex items-center gap-3 px-4 py-2.5 select-none transition-colors ${
+                          dragOverId === cat.id && dragId.current !== cat.id
+                            ? 'bg-indigo-50 dark:bg-indigo-900/20'
+                            : ''
+                        }`}
+                        style={{ opacity: dragId.current === cat.id ? 0.4 : 1 }}
+                      >
+                        {/* Drag handle */}
+                        <svg
+                          className="w-4 h-4 text-gray-300 dark:text-gray-700 cursor-grab shrink-0"
+                          viewBox="0 0 16 16"
+                          fill="currentColor"
+                        >
+                          <circle cx="5.5" cy="4" r="1.2" />
+                          <circle cx="5.5" cy="8" r="1.2" />
+                          <circle cx="5.5" cy="12" r="1.2" />
+                          <circle cx="10.5" cy="4" r="1.2" />
+                          <circle cx="10.5" cy="8" r="1.2" />
+                          <circle cx="10.5" cy="12" r="1.2" />
+                        </svg>
+
+                        {/* Label */}
+                        <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">
+                          {cat.label || (
+                            <span className="text-gray-400 dark:text-gray-600 italic">Unnamed</span>
+                          )}
+                        </span>
+
+                        {/* Delete */}
+                        <button
+                          onClick={() => handleDeleteClick(cat)}
+                          className="shrink-0 text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-500 transition-colors"
+                          title="Delete category"
+                        >
+                          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                            <line x1="3" y1="3" x2="13" y2="13" />
+                            <line x1="13" y1="3" x2="3" y2="13" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       </div>
 
@@ -168,12 +312,47 @@ export default function Settings() {
             )}
           </div>
           {monthKeys.length === 0 && (
-            <p className="text-xs text-gray-400 dark:text-gray-600 mt-3">
-              No transaction data yet.
-            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-600 mt-3">No transaction data yet.</p>
           )}
         </div>
       </div>
+
+      {/* Delete confirmation modal */}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          onClick={() => setPendingDelete(null)}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-6 max-w-sm w-full mx-4 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-sm font-semibold text-gray-800 dark:text-gray-200 mb-2">
+              Delete &ldquo;{pendingDelete.label || 'Unnamed'}&rdquo;?
+            </h3>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
+              {buildDeleteMessage(pendingDelete)}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setPendingDelete(null)}
+                className="px-3 py-1.5 text-sm text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700 rounded hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  removeCategory(pendingDelete.id)
+                  setPendingDelete(null)
+                }}
+                className="px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded transition-colors"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

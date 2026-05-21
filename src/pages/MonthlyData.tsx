@@ -76,7 +76,6 @@ function BudgetTable({
   isIncome,
   onUpdate,
   onAdd,
-  onRemove,
 }: {
   title: string
   rows: BudgetRow[]
@@ -85,13 +84,12 @@ function BudgetTable({
   isIncome?: boolean
   onUpdate: (id: string, field: string, value: string) => void
   onAdd: () => void
-  onRemove: (id: string) => void
 }) {
   const totalBudgeted = rows.reduce((s, r) => s + (parseFloat(r.budgeted) || 0), 0)
   const totalActual = rows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0)
   const totalDiff = isIncome ? totalActual - totalBudgeted : totalBudgeted - totalActual
   const hasTotals = totalBudgeted > 0 || totalActual > 0
-  const spanCols = hasType ? 6 : 5
+  const spanCols = hasType ? 5 : 4
 
   return (
     <div>
@@ -117,7 +115,6 @@ function BudgetTable({
               <th className="text-right py-2 pl-2 pr-4 font-medium text-gray-500 dark:text-gray-400 w-24">
                 Diff
               </th>
-              <th className="w-7 py-2" />
             </tr>
           </thead>
           <tbody>
@@ -170,14 +167,6 @@ function BudgetTable({
                   <td className={`py-1.5 pl-2 pr-4 text-right tabular-nums ${diffColor}`}>
                     {hasValues ? fmtCents(diff) : '$—'}
                   </td>
-                  <td className="py-1.5 pr-1">
-                    <button
-                      onClick={() => onRemove(row.id)}
-                      className="w-6 h-6 flex items-center justify-center rounded text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-base leading-none"
-                    >
-                      ×
-                    </button>
-                  </td>
                 </tr>
               )
             })}
@@ -203,7 +192,6 @@ function BudgetTable({
               >
                 {hasTotals ? fmtCents(totalDiff) : '$—'}
               </td>
-              <td />
             </tr>
             <tr className="bg-white dark:bg-gray-900">
               <td colSpan={spanCols} className="px-4 py-2">
@@ -275,6 +263,9 @@ function TransactionTable({
               <th className="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400">
                 Description
               </th>
+              <th className="text-left py-2 px-3 font-medium text-gray-500 dark:text-gray-400 w-44">
+                Tags
+              </th>
               <th className="w-7 py-2" />
             </tr>
           </thead>
@@ -319,6 +310,14 @@ function TransactionTable({
                     placeholder="Description"
                   />
                 </td>
+                <td className="py-1.5 px-3">
+                  <TextInput
+                    compact
+                    value={tx.tags ?? ''}
+                    onChange={(v) => onUpdate(tx.id, 'tags', v)}
+                    placeholder="tag1 tag2"
+                  />
+                </td>
                 <td className="py-1.5 pr-1">
                   <button
                     onClick={() => onRemove(tx.id)}
@@ -338,7 +337,7 @@ function TransactionTable({
               <td className="py-2 px-3 text-right tabular-nums text-green-600 dark:text-green-400">
                 {incomeTotal !== 0 ? fmtCents(incomeTotal) : '$—'}
               </td>
-              <td colSpan={2} />
+              <td colSpan={3} />
             </tr>
             <tr className="bg-gray-100 dark:bg-gray-800/50 font-semibold">
               <td className="py-2 pl-4 pr-3 text-gray-500 dark:text-gray-400 font-medium">
@@ -347,10 +346,10 @@ function TransactionTable({
               <td className="py-2 px-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
                 {expensesTotal !== 0 ? fmtCents(expensesTotal) : '$—'}
               </td>
-              <td colSpan={2} />
+              <td colSpan={3} />
             </tr>
             <tr className="bg-white dark:bg-gray-900">
-              <td colSpan={4} className="px-4 py-2">
+              <td colSpan={5} className="px-4 py-2">
                 <button
                   onClick={onAdd}
                   className="text-xs text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 transition-colors flex items-center gap-1.5"
@@ -461,7 +460,6 @@ export default function MonthlyData() {
     data,
     updateCategory,
     addCategory,
-    removeCategory,
     updateBudgeted,
     addTransaction,
     updateTransaction,
@@ -776,8 +774,8 @@ export default function MonthlyData() {
         </div>
       </div>
 
-      {/* Budget tables — 2-column grid */}
-      <div className="grid grid-cols-1 2xl:grid-cols-2 gap-6 mb-6">
+      {/* Budget tables — single column below 2xl */}
+      <div className="flex flex-col gap-6 mb-6 2xl:hidden">
         <BudgetTable
           title="Income"
           rows={incomeRows}
@@ -786,7 +784,6 @@ export default function MonthlyData() {
           isIncome
           onUpdate={handleCategoryUpdate}
           onAdd={() => addCategory('income')}
-          onRemove={removeCategory}
         />
         <BudgetTable
           title="Fixed Expenses"
@@ -795,7 +792,6 @@ export default function MonthlyData() {
           hasType
           onUpdate={handleCategoryUpdate}
           onAdd={() => addCategory('fixed', 'need')}
-          onRemove={removeCategory}
         />
         <BudgetTable
           title="Variable Expenses"
@@ -804,7 +800,6 @@ export default function MonthlyData() {
           hasType
           onUpdate={handleCategoryUpdate}
           onAdd={() => addCategory('variable', 'want')}
-          onRemove={removeCategory}
         />
         <BudgetTable
           title="Savings & Investments"
@@ -813,8 +808,46 @@ export default function MonthlyData() {
           hasType={false}
           onUpdate={handleCategoryUpdate}
           onAdd={() => addCategory('savings')}
-          onRemove={removeCategory}
         />
+      </div>
+
+      {/* Budget tables — variable left, others stacked right at 2xl+ */}
+      <div className="hidden 2xl:grid 2xl:grid-cols-2 2xl:items-start gap-6 mb-6">
+        <BudgetTable
+          title="Variable Expenses"
+          rows={varRows}
+          actuals={actuals}
+          hasType
+          onUpdate={handleCategoryUpdate}
+          onAdd={() => addCategory('variable', 'want')}
+        />
+        <div className="flex flex-col gap-6">
+          <BudgetTable
+            title="Income"
+            rows={incomeRows}
+            actuals={actuals}
+            hasType={false}
+            isIncome
+            onUpdate={handleCategoryUpdate}
+            onAdd={() => addCategory('income')}
+          />
+          <BudgetTable
+            title="Fixed Expenses"
+            rows={fixedRows}
+            actuals={actuals}
+            hasType
+            onUpdate={handleCategoryUpdate}
+            onAdd={() => addCategory('fixed', 'need')}
+          />
+          <BudgetTable
+            title="Savings & Investments"
+            rows={savingsRows}
+            actuals={actuals}
+            hasType={false}
+            onUpdate={handleCategoryUpdate}
+            onAdd={() => addCategory('savings')}
+          />
+        </div>
       </div>
 
       {/* Transactions */}

@@ -19,6 +19,7 @@ type AppDataContextValue = {
   addCategory: (section: BudgetCategory['section'], defaultExpenseType?: ExpenseType) => void
   updateCategory: (id: string, patch: Partial<Omit<BudgetCategory, 'id'>>) => void
   removeCategory: (id: string) => void
+  reorderCategories: (orderedIds: string[]) => void
 
   // Monthly budget (scoped to year + zero-padded month)
   getBudgetMonth: (year: string, month: string) => BudgetMonth
@@ -152,6 +153,23 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }))
   }
 
+  function reorderCategories(orderedIds: string[]) {
+    setData((prev) => {
+      const sectionSet = new Set(orderedIds)
+      const sorted = [...prev.budget.categories].sort((a, b) => a.order - b.order)
+      const sectionItems = orderedIds.map((id) => sorted.find((c) => c.id === id)!)
+      let sectionIdx = 0
+      const newSorted = sorted.map((c) => (sectionSet.has(c.id) ? sectionItems[sectionIdx++] : c))
+      return {
+        ...prev,
+        budget: {
+          ...prev.budget,
+          categories: newSorted.map((c, i) => ({ ...c, order: i })),
+        },
+      }
+    })
+  }
+
   // ─── Monthly budget mutations ─────────────────────────────────────────────
 
   function getBudgetMonth(year: string, month: string): BudgetMonth {
@@ -214,11 +232,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       for (const txs of groups.values()) {
         const sum = txs.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
         if (sum === 0) continue
+        const mergedTags = [
+          ...new Set(txs.flatMap((t) => (t.tags ?? '').split(/\s+/).filter(Boolean))),
+        ].join(' ')
         condensed.push({
           id: crypto.randomUUID(),
           categoryId: txs[0].categoryId,
           amount: sum.toFixed(2),
           description: txs[0].description,
+          ...(mergedTags ? { tags: mergedTags } : {}),
         })
       }
       const next = setMonth(prev, year, month, { ...bm, transactions: condensed })
@@ -272,6 +294,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     addCategory,
     updateCategory,
     removeCategory,
+    reorderCategories,
     getBudgetMonth,
     updateBudgeted,
     addTransaction,
