@@ -4,7 +4,7 @@
 
 - [x] **Annual Overview** — pull actual transaction and budget data from `AppData` monthly records; compute income, expenses, savings, and savings rate per month
 - [x] **Net Worth** — make asset/liability rows editable (currency inputs), persist values in AppData, compute totals live
-- [ ] **Account Mode** - add account mode `AccountStorageAdapter` with Supabase datastore for Google auth login. Persists data across multiple devices, allows families to share data between users
+- [x] **Account Mode** - add account mode `AccountStorageAdapter` with Supabase datastore for Google auth login. Persists data across multiple devices, allows families to share data between users
 
 ## Medium priority — features that complete existing pages
 
@@ -16,7 +16,7 @@
 
 ## Lower priority — data and app quality
 
-- [ ] **Export / Import** — download AppData as JSON and re-import it (useful as a backup before account mode exists)
+- [x] **Export / Import** — download AppData as JSON and re-import it (useful as a backup before account mode exists)
 - [ ] **Welcome page onboarding flow** — guide the user to set up budget categories and their first monthly budget before landing on an empty dashboard
 - [ ] **Debt Snowball** — make debt rows addable/removable/editable (balance, min payment, rate); implement real snowball and avalanche payoff calculations; show per-debt estimated payoff date
 - [ ] **Debt Snowball payoff timeline chart** — bar or line chart showing remaining balance per debt over time under the selected strategy

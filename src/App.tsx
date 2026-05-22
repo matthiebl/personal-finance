@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
 import { AppDataProvider } from './context/AppDataContext'
 import Calculators from './pages/Calculators'
 import DebtSnowball from './pages/DebtSnowball'
@@ -157,6 +158,7 @@ function App() {
 
   return (
     <BrowserRouter>
+      <AuthProvider>
       <AppDataProvider>
         <div className="min-h-screen flex flex-col lg:flex-row bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
           {/* Mobile top bar */}
@@ -197,6 +199,7 @@ function App() {
           </main>
         </div>
       </AppDataProvider>
+      </AuthProvider>
     </BrowserRouter>
   )
 }

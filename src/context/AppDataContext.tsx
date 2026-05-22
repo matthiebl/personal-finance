@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { DEFAULT_APP_DATA, StorageFullError, localStorageAdapter } from '../lib/storage'
+import { AccountStorageAdapter, DEFAULT_APP_DATA, StorageFullError, localStorageAdapter } from '../lib/storage'
+import type { StorageAdapter } from '../lib/storage'
 import type {
   AppData,
   BudgetCategory,
@@ -11,6 +12,7 @@ import type {
   StorageMode,
   Transaction,
 } from '../lib/types'
+import { useAuth } from './AuthContext'
 
 type AppDataContextValue = {
   data: AppData
@@ -50,6 +52,8 @@ type AppDataContextValue = {
 
   // Settings
   setStorageMode: (mode: StorageMode) => void
+  migrateToAccount: (strategy: 'upload' | 'download') => Promise<void>
+  hasCloudData: () => Promise<boolean>
   storageUsage: { usedBytes: number; totalBytes: number | null }
   storageError: string | null
 }
@@ -83,20 +87,24 @@ function setMonth(data: AppData, year: string, month: string, bm: BudgetMonth): 
 }
 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
+  const { family, authLoaded } = useAuth()
+
   const [data, setData] = useState<AppData>(() => structuredClone(DEFAULT_APP_DATA))
   const [loaded, setLoaded] = useState(false)
   const [storageUsage, setStorageUsage] = useState<{
     usedBytes: number
     totalBytes: number | null
-  }>({
-    usedBytes: 0,
-    totalBytes: null,
-  })
+  }>({ usedBytes: 0, totalBytes: null })
   const [storageError, setStorageError] = useState<string | null>(null)
+
+  const adapterRef = useRef<StorageAdapter>(localStorageAdapter)
+  // Tracks which adapter is currently active: 'local' | 'account:<familyId>'
+  const adapterKeyRef = useRef<string>('local')
+
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const loadedRef = useRef(false)
 
-  // Load on mount
+  // Load initial data from localStorage on mount
   useEffect(() => {
     localStorageAdapter.load().then((persisted) => {
       setData(persisted)
@@ -106,16 +114,40 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     localStorageAdapter.estimateUsage().then(setStorageUsage)
   }, [])
 
+  // Switch adapter when family or storageMode changes (after both loads are complete)
+  useEffect(() => {
+    if (!authLoaded || !loaded) return
+
+    const desiredKey =
+      data.storageMode === 'account' && family ? `account:${family.id}` : 'local'
+
+    if (desiredKey === adapterKeyRef.current) return
+    adapterKeyRef.current = desiredKey
+
+    if (desiredKey.startsWith('account:') && family) {
+      const accountAdapter = new AccountStorageAdapter(family.id)
+      adapterRef.current = accountAdapter
+      // Reload from cloud when switching into account mode
+      accountAdapter.load().then((cloudData) => {
+        setData({ ...cloudData, storageMode: 'account' })
+        accountAdapter.estimateUsage().then(setStorageUsage)
+      })
+    } else {
+      adapterRef.current = localStorageAdapter
+      localStorageAdapter.estimateUsage().then(setStorageUsage)
+    }
+  }, [authLoaded, loaded, family, data.storageMode]) // eslint-disable-line react-hooks/exhaustive-deps
+
   // Debounced save whenever data changes (after initial load)
   useEffect(() => {
     if (!loadedRef.current) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      localStorageAdapter
+      adapterRef.current
         .save(data)
         .then(() => {
           setStorageError(null)
-          localStorageAdapter.estimateUsage().then(setStorageUsage)
+          adapterRef.current.estimateUsage().then(setStorageUsage)
         })
         .catch((e) => {
           if (e instanceof StorageFullError) setStorageError(e.message)
@@ -125,8 +157,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     return () => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current)
-        // Flush immediately on unmount
-        localStorageAdapter.save(data).catch(() => {})
+        adapterRef.current.save(data).catch(() => {})
       }
     }
   }, [data])
@@ -261,7 +292,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       const next = setMonth(prev, year, month, { ...bm, transactions: condensed })
       // Save immediately (bypass debounce) since this is an explicit user action
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-      localStorageAdapter.save(next).catch(() => {})
+      adapterRef.current.save(next).catch(() => {})
       return next
     })
   }
@@ -364,6 +395,37 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => ({ ...prev, storageMode: mode }))
   }
 
+  async function migrateToAccount(strategy: 'upload' | 'download') {
+    if (!family) throw new Error('No family to migrate to')
+    const accountAdapter = new AccountStorageAdapter(family.id)
+    const newKey = `account:${family.id}`
+
+    if (strategy === 'upload') {
+      const dataToUpload: AppData = { ...data, storageMode: 'account' }
+      await accountAdapter.save(dataToUpload)
+      // Stamp mode in localStorage so the adapter switches correctly after a refresh
+      localStorageAdapter.save(dataToUpload).catch(() => {})
+      adapterRef.current = accountAdapter
+      adapterKeyRef.current = newKey
+      setData(dataToUpload)
+      accountAdapter.estimateUsage().then(setStorageUsage)
+    } else {
+      const cloudData = await accountAdapter.load()
+      const merged: AppData = { ...cloudData, storageMode: 'account' }
+      localStorageAdapter.save(merged).catch(() => {})
+      adapterRef.current = accountAdapter
+      adapterKeyRef.current = newKey
+      setData(merged)
+      accountAdapter.estimateUsage().then(setStorageUsage)
+    }
+  }
+
+  async function hasCloudData(): Promise<boolean> {
+    if (!family) return false
+    const accountAdapter = new AccountStorageAdapter(family.id)
+    return accountAdapter.exists()
+  }
+
   const value: AppDataContextValue = {
     data,
     loaded,
@@ -386,6 +448,8 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     removeNetworthEntry,
     setNetworthValue,
     setStorageMode,
+    migrateToAccount,
+    hasCloudData,
     storageUsage,
     storageError,
   }

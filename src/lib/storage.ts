@@ -1,3 +1,4 @@
+import { supabase } from './supabase'
 import type { AppData, BudgetCategory, EmergencyFundData } from './types'
 
 export class StorageFullError extends Error {
@@ -127,6 +128,52 @@ export class LocalStorageAdapter implements StorageAdapter {
   }
 }
 
-// Future: AccountStorageAdapter would implement StorageAdapter here
+export class AccountStorageAdapter implements StorageAdapter {
+  familyId: string
+  constructor(familyId: string) {
+    this.familyId = familyId
+  }
+
+  async load(): Promise<AppData> {
+    const { data, error } = await supabase
+      .from('family_data')
+      .select('data')
+      .eq('family_id', this.familyId)
+      .single()
+
+    if (error || !data) return structuredClone(DEFAULT_APP_DATA)
+
+    const parsed = data.data as Partial<AppData>
+    return {
+      ...structuredClone(DEFAULT_APP_DATA),
+      ...parsed,
+      networth: {
+        ...DEFAULT_APP_DATA.networth,
+        ...(parsed.networth ?? {}),
+      },
+    }
+  }
+
+  async save(appData: AppData): Promise<void> {
+    const { error } = await supabase.from('family_data').upsert(
+      { family_id: this.familyId, data: appData, updated_at: new Date().toISOString() },
+      { onConflict: 'family_id' },
+    )
+    if (error) throw new Error(error.message)
+  }
+
+  async estimateUsage(): Promise<{ usedBytes: number; totalBytes: number | null }> {
+    return { usedBytes: 0, totalBytes: null }
+  }
+
+  async exists(): Promise<boolean> {
+    const { data } = await supabase
+      .from('family_data')
+      .select('family_id')
+      .eq('family_id', this.familyId)
+      .maybeSingle()
+    return data !== null
+  }
+}
 
 export const localStorageAdapter = new LocalStorageAdapter()
