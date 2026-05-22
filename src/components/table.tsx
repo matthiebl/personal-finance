@@ -1,5 +1,5 @@
-import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { useState } from 'react'
 import { fmt, fmtCents } from '../lib/finance'
 
 // ─── Shared Primitive ─────────────────────────────────────────────────────────
@@ -222,12 +222,21 @@ function AnnualSection({
           </span>
         </td>
         {sectionTotals.map((v, i) => (
-          <td key={i} className="py-2 px-3 text-right tabular-nums text-xs font-medium text-gray-500 dark:text-gray-400">
+          <td
+            key={i}
+            className="py-2 px-3 text-right tabular-nums text-xs font-medium text-gray-500 dark:text-gray-400"
+          >
             {v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>}
           </td>
         ))}
-        <td className={`py-2 pl-3 pr-4 text-right tabular-nums text-xs font-semibold ${accentClass}`}>
-          {sectionAnnual > 0 ? fmt(sectionAnnual) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+        <td
+          className={`py-2 pl-3 pr-4 text-right tabular-nums text-xs font-semibold ${accentClass}`}
+        >
+          {sectionAnnual > 0 ? (
+            fmt(sectionAnnual)
+          ) : (
+            <span className="text-gray-300 dark:text-gray-700">—</span>
+          )}
         </td>
       </tr>
       {open &&
@@ -242,12 +251,19 @@ function AnnualSection({
               <span className="ml-1.5 text-[10px] text-gray-300 dark:text-gray-700">↗</span>
             </td>
             {row.monthlyTotals.map((v, i) => (
-              <td key={i} className="py-2 px-3 text-right tabular-nums text-sm text-gray-600 dark:text-gray-400">
+              <td
+                key={i}
+                className="py-2 px-3 text-right tabular-nums text-sm text-gray-600 dark:text-gray-400"
+              >
                 {v > 0 ? fmtCents(v) : <span className="text-gray-300 dark:text-gray-700">—</span>}
               </td>
             ))}
             <td className="py-2 pl-3 pr-4 text-right tabular-nums text-sm font-medium text-gray-700 dark:text-gray-200">
-              {row.annualTotal > 0 ? fmtCents(row.annualTotal) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+              {row.annualTotal > 0 ? (
+                fmtCents(row.annualTotal)
+              ) : (
+                <span className="text-gray-300 dark:text-gray-700">—</span>
+              )}
             </td>
           </tr>
         ))}
@@ -286,11 +302,16 @@ export function AnnualBreakdownTable({
       ))}
       {summaryRows.map((row, i) => (
         <tr key={i} className={row.rowClass}>
-          <td className={`sticky left-0 z-10 py-2 pr-4 pl-4 text-sm ${row.stickyClass} ${row.labelClass ?? ''}`}>
+          <td
+            className={`sticky left-0 z-10 py-2 pr-4 pl-4 text-sm ${row.stickyClass} ${row.labelClass ?? ''}`}
+          >
             {row.label}
           </td>
           {row.months.map((cell, j) => (
-            <td key={j} className={`py-2 px-3 text-right tabular-nums text-sm ${row.monthClass ?? ''}`}>
+            <td
+              key={j}
+              className={`py-2 px-3 text-right tabular-nums text-sm ${row.monthClass ?? ''}`}
+            >
               {cell}
             </td>
           ))}

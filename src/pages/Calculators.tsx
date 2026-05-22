@@ -6,7 +6,7 @@ type CalcInput =
   | { label: string; prefix: '$'; placeholder: string }
   | { label: string; suffix: string; placeholder: string }
   | { label: string; placeholder: string }
-  | { label: string; type: 'select'; options: string[] }
+  | { label: string; type: 'select'; options: string[]; placeholder?: string }
 
 const CALCULATORS: { name: string; description: string; inputs: CalcInput[]; result: string }[] = [
   {
@@ -69,11 +69,7 @@ const CALCULATORS: { name: string; description: string; inputs: CalcInput[]; res
   },
 ]
 
-function CalculatorCard({
-  calc,
-}: {
-  calc: (typeof CALCULATORS)[0]
-}) {
+function CalculatorCard({ calc }: { calc: (typeof CALCULATORS)[0] }) {
   const [values, setValues] = useState<Record<string, string>>(() =>
     Object.fromEntries(calc.inputs.map((i) => [i.label, '']))
   )
@@ -144,10 +140,7 @@ function CalculatorCard({
 export default function Calculators() {
   return (
     <div>
-      <PageHeader
-        title="Calculators"
-        subtitle="A collection of useful financial calculators."
-      />
+      <PageHeader title="Calculators" subtitle="A collection of useful financial calculators." />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {CALCULATORS.map((calc) => (

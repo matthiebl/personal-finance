@@ -1,29 +1,63 @@
 import { useMemo, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import { useSearchParams } from 'react-router-dom'
-import { DonutChart, ExpandableChart, IncomeVsOutgoingChart, MonthlyStackedChart, MonthlyTrendChart } from '../components/charts'
-import type { DonutSegment, IncomeOutgoingDatum, StackedDatum, TrendDatum } from '../components/charts'
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import type { DonutSegment, StackedDatum, TrendDatum } from '../components/charts'
+import {
+  DonutChart,
+  ExpandableChart,
+  MonthlyStackedChart,
+  MonthlyTrendChart,
+} from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { PageHeader, SectionHeading } from '../components/layout'
-import { AnnualBreakdownTable } from '../components/table'
 import type { AnnualSectionConfig, AnnualSummaryRow, AnnualTableRow } from '../components/table'
+import { AnnualBreakdownTable } from '../components/table'
 import { useAppData } from '../context/AppDataContext'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, BudgetYear, Transaction } from '../lib/types'
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTH_ABBR = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+const MONTH_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
 const MONTH_KEYS = MONTH_ABBR.map((_, i) => String(i + 1).padStart(2, '0'))
 
-const PALETTE = ['#6366f1', '#8b5cf6', '#f97316', '#10b981', '#14b8a6', '#f43f5e', '#ec4899', '#06b6d4', '#22c55e', '#94a3b8']
+const PALETTE = [
+  '#6366f1',
+  '#8b5cf6',
+  '#f97316',
+  '#10b981',
+  '#14b8a6',
+  '#f43f5e',
+  '#ec4899',
+  '#06b6d4',
+  '#22c55e',
+  '#94a3b8',
+]
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -31,6 +65,15 @@ type DeepDiveCategory = {
   categoryId: string
   label: string
   section: BudgetCategory['section']
+}
+
+type ViewMode = 'year' | 'rolling12'
+
+type MonthSlot = {
+  year: string
+  monthKey: string
+  abbr: string
+  full: string
 }
 
 // ─── YearSelector ─────────────────────────────────────────────────────────────
@@ -57,6 +100,33 @@ function YearSelector({ year, onChange }: { year: string; onChange: (delta: numb
   )
 }
 
+function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
+  return (
+    <div className="flex items-center rounded-full border border-gray-200 dark:border-gray-700 overflow-hidden">
+      <button
+        onClick={() => onChange('year')}
+        className={`px-3 py-1.5 text-sm transition-colors rounded-l-full ${
+          mode === 'year'
+            ? 'bg-indigo-600 text-white'
+            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+        }`}
+      >
+        Year
+      </button>
+      <button
+        onClick={() => onChange('rolling12')}
+        className={`px-3 py-1.5 text-sm transition-colors rounded-r-full ${
+          mode === 'rolling12'
+            ? 'bg-indigo-600 text-white'
+            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+        }`}
+      >
+        Rolling 12M
+      </button>
+    </div>
+  )
+}
+
 // ─── CategoryDeepDive ─────────────────────────────────────────────────────────
 
 type TxWithMonth = { tx: Transaction; monthIdx: number }
@@ -76,7 +146,9 @@ function DeepDiveTooltip({
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
       <p className="font-medium text-gray-700 dark:text-gray-200 mb-1">{label}</p>
-      <span className="tabular-nums text-gray-600 dark:text-gray-300">{fmtCents(payload[0].value)}</span>
+      <span className="tabular-nums text-gray-600 dark:text-gray-300">
+        {fmtCents(payload[0].value)}
+      </span>
     </div>
   )
 }
@@ -84,10 +156,14 @@ function DeepDiveTooltip({
 function CategoryDeepDive({
   category,
   yearData,
+  monthAbbr = MONTH_ABBR,
+  monthFull = MONTH_FULL,
   onClose,
 }: {
   category: DeepDiveCategory
   yearData: BudgetYear
+  monthAbbr?: string[]
+  monthFull?: string[]
   onClose: () => void
 }) {
   const [excludedTags, setExcludedTags] = useState<Set<string>>(new Set())
@@ -125,7 +201,7 @@ function CategoryDeepDive({
         const txTags = (tx.tags ?? '').split(/\s+/).filter(Boolean)
         if (txTags.length === 0) {
           if (excludedTags.has('(no tag)')) return false
-        } else if (txTags.every((tag) => excludedTags.has(tag))) {
+        } else if (txTags.some((tag) => excludedTags.has(tag))) {
           return false
         }
       }
@@ -138,8 +214,8 @@ function CategoryDeepDive({
     for (const { tx, monthIdx } of filteredTxWithMonth) {
       totals[monthIdx] += parseFloat(tx.amount) || 0
     }
-    return MONTH_ABBR.map((month, i) => ({ month, amount: totals[i] }))
-  }, [filteredTxWithMonth])
+    return monthAbbr.map((month, i) => ({ month, amount: totals[i] }))
+  }, [filteredTxWithMonth, monthAbbr])
 
   const tagSegments = useMemo((): DonutSegment[] => {
     const map = new Map<string, number>()
@@ -161,23 +237,32 @@ function CategoryDeepDive({
   }, [filteredTxWithMonth])
 
   const txByMonth = useMemo(() => {
-    const groups: { monthIdx: number; label: string; transactions: Transaction[]; total: number }[] = []
+    const groups: {
+      monthIdx: number
+      label: string
+      transactions: Transaction[]
+      total: number
+    }[] = []
     for (let i = 0; i < 12; i++) {
       const txs = filteredTxWithMonth.filter((x) => x.monthIdx === i).map((x) => x.tx)
       if (txs.length > 0) {
         const total = txs.reduce((s, t) => s + (parseFloat(t.amount) || 0), 0)
-        groups.push({ monthIdx: i, label: MONTH_FULL[i], transactions: txs, total })
+        groups.push({ monthIdx: i, label: monthFull[i], transactions: txs, total })
       }
     }
     return groups
-  }, [filteredTxWithMonth])
+  }, [filteredTxWithMonth, monthFull])
 
   const grandTotal = filteredTxWithMonth.reduce((s, { tx }) => s + (parseFloat(tx.amount) || 0), 0)
 
   function toggleTag(tag: string) {
     setExcludedTags((prev) => {
       const next = new Set(prev)
-      next.has(tag) ? next.delete(tag) : next.add(tag)
+      if (next.has(tag)) {
+        next.delete(tag)
+      } else {
+        next.add(tag)
+      }
       return next
     })
   }
@@ -195,9 +280,12 @@ function CategoryDeepDive({
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
           <div>
-            <p className="font-semibold text-gray-800 dark:text-gray-100 text-base">{category.label}</p>
+            <p className="font-semibold text-gray-800 dark:text-gray-100 text-base">
+              {category.label}
+            </p>
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 tabular-nums">
-              {grandTotal > 0 ? fmtCents(grandTotal) : '$—'} across {filteredTxWithMonth.length} transaction{filteredTxWithMonth.length !== 1 ? 's' : ''}
+              {grandTotal > 0 ? fmtCents(grandTotal) : '$—'} across {filteredTxWithMonth.length}{' '}
+              transaction{filteredTxWithMonth.length !== 1 ? 's' : ''}
             </p>
           </div>
           <button
@@ -210,24 +298,45 @@ function CategoryDeepDive({
 
         {/* Scrollable body */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6">
-
           {/* Monthly bar chart */}
           <div>
             <SectionHeading>Monthly Activity</SectionHeading>
             <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-3 border border-gray-100 dark:border-gray-800">
               {monthlyBarData.some((d) => d.amount > 0) ? (
                 <ResponsiveContainer width="100%" height={180}>
-                  <BarChart data={monthlyBarData} margin={{ top: 4, right: 4, left: 0, bottom: 0 }} barCategoryGap="30%">
+                  <BarChart
+                    data={monthlyBarData}
+                    margin={{ top: 4, right: 4, left: 0, bottom: 0 }}
+                    barCategoryGap="30%"
+                  >
                     <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                    <YAxis tickFormatter={fmtAxis} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={44} />
+                    <XAxis
+                      dataKey="month"
+                      tick={{ fontSize: 10, fill: '#9ca3af' }}
+                      axisLine={false}
+                      tickLine={false}
+                    />
+                    <YAxis
+                      tickFormatter={fmtAxis}
+                      tick={{ fontSize: 10, fill: '#9ca3af' }}
+                      axisLine={false}
+                      tickLine={false}
+                      width={44}
+                    />
                     <Tooltip content={<DeepDiveTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-                    <Bar dataKey="amount" fill="#6366f1" radius={[3, 3, 0, 0]} name={category.label} />
+                    <Bar
+                      dataKey="amount"
+                      fill="#6366f1"
+                      radius={[3, 3, 0, 0]}
+                      name={category.label}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               ) : (
                 <div className="flex items-center justify-center h-45">
-                  <p className="text-xs text-gray-400 dark:text-gray-600">No transactions in this year</p>
+                  <p className="text-xs text-gray-400 dark:text-gray-600">
+                    No transactions in this year
+                  </p>
                 </div>
               )}
             </div>
@@ -274,10 +383,15 @@ function CategoryDeepDive({
                     {tagSegments.map((seg) => (
                       <div key={seg.label} className="flex justify-between items-center text-xs">
                         <div className="flex items-center gap-1.5">
-                          <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: seg.color }} />
+                          <span
+                            className="w-2 h-2 rounded-sm shrink-0"
+                            style={{ backgroundColor: seg.color }}
+                          />
                           <span className="text-gray-600 dark:text-gray-400">{seg.label}</span>
                         </div>
-                        <span className="tabular-nums text-gray-700 dark:text-gray-300">{fmtCents(seg.value)}</span>
+                        <span className="tabular-nums text-gray-700 dark:text-gray-300">
+                          {fmtCents(seg.value)}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -311,8 +425,12 @@ function CategoryDeepDive({
                 {txByMonth.map((group) => (
                   <div key={group.monthIdx}>
                     <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500">{group.label}</p>
-                      <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">{fmtCents(group.total)}</span>
+                      <p className="text-xs font-medium text-gray-400 dark:text-gray-500">
+                        {group.label}
+                      </p>
+                      <span className="text-xs tabular-nums text-gray-400 dark:text-gray-500">
+                        {fmtCents(group.total)}
+                      </span>
                     </div>
                     <div className="rounded-lg border border-gray-100 dark:border-gray-800 overflow-hidden">
                       {group.transactions.map((tx, i) => {
@@ -320,7 +438,9 @@ function CategoryDeepDive({
                         return (
                           <div
                             key={tx.id}
-                            onClick={() => tx.description && toggleDescriptionFilter(tx.description)}
+                            onClick={() =>
+                              tx.description && toggleDescriptionFilter(tx.description)
+                            }
                             className={`flex items-center justify-between py-2 px-3 text-sm transition-colors ${
                               tx.description ? 'cursor-pointer' : ''
                             } ${
@@ -332,11 +452,17 @@ function CategoryDeepDive({
                             }`}
                           >
                             <div className="flex-1 min-w-0 mr-3">
-                              <span className={`truncate block ${isSelected ? 'text-indigo-700 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300'}`}>
-                                {tx.description || <span className="text-gray-300 dark:text-gray-700">—</span>}
+                              <span
+                                className={`truncate block ${isSelected ? 'text-indigo-700 dark:text-indigo-300 font-medium' : 'text-gray-700 dark:text-gray-300'}`}
+                              >
+                                {tx.description || (
+                                  <span className="text-gray-300 dark:text-gray-700">—</span>
+                                )}
                               </span>
                               {tx.tags && (
-                                <span className="text-xs text-gray-400 dark:text-gray-600 mt-0.5 block">{tx.tags}</span>
+                                <span className="text-xs text-gray-400 dark:text-gray-600 mt-0.5 block">
+                                  {tx.tags}
+                                </span>
                               )}
                             </div>
                             <span className="tabular-nums text-gray-600 dark:text-gray-400 shrink-0">
@@ -363,12 +489,23 @@ export default function Overview() {
   const { data } = useAppData()
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedYear = searchParams.get('year') ?? String(new Date().getFullYear())
+  const viewMode = (searchParams.get('view') ?? 'year') as ViewMode
   const [deepDiveCategory, setDeepDiveCategory] = useState<DeepDiveCategory | null>(null)
 
   function setYear(delta: number) {
     setSearchParams(
       (p) => {
         p.set('year', String(parseInt(selectedYear) + delta))
+        return p
+      },
+      { replace: true }
+    )
+  }
+
+  function setViewMode(mode: ViewMode) {
+    setSearchParams(
+      (p) => {
+        p.set('view', mode)
         return p
       },
       { replace: true }
@@ -395,32 +532,47 @@ export default function Overview() {
     return { incomeIds, savingsIds, expenseIds, catToExpenseType }
   }, [sortedCats])
 
-  // Year data
-  const yearData = useMemo(
-    () => data.budget.years[selectedYear] ?? { months: {} },
-    [data.budget.years, selectedYear]
-  )
+  // Active month slots — 12 entries, either the selected calendar year or rolling 12M
+  const activeMonthSlots = useMemo((): MonthSlot[] => {
+    if (viewMode === 'rolling12') {
+      const now = new Date()
+      return Array.from({ length: 12 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
+        return {
+          year: String(d.getFullYear()),
+          monthKey: String(d.getMonth() + 1).padStart(2, '0'),
+          abbr: `${MONTH_ABBR[d.getMonth()]} '${String(d.getFullYear()).slice(2)}`,
+          full: `${MONTH_FULL[d.getMonth()]} ${d.getFullYear()}`,
+        }
+      })
+    }
+    return MONTH_KEYS.map((key, i) => ({
+      year: selectedYear,
+      monthKey: key,
+      abbr: MONTH_ABBR[i],
+      full: MONTH_FULL[i],
+    }))
+  }, [viewMode, selectedYear])
 
-  // Monthly actuals — Record<'01'..'12', Record<catId, number>>
+  // Monthly totals — array indexed 0-11 by slot, each entry is catId -> amount
   const monthlyActuals = useMemo(() => {
-    const result: Record<string, Record<string, number>> = {}
-    for (const key of MONTH_KEYS) {
-      const bm = yearData.months[key]
+    return activeMonthSlots.map(({ year, monthKey }) => {
+      const bm = (data.budget.years[year] ?? { months: {} }).months[monthKey]
       const map: Record<string, number> = {}
       if (bm) {
         for (const tx of bm.transactions) {
-          if (tx.categoryId) map[tx.categoryId] = (map[tx.categoryId] ?? 0) + (parseFloat(tx.amount) || 0)
+          if (tx.categoryId)
+            map[tx.categoryId] = (map[tx.categoryId] ?? 0) + (parseFloat(tx.amount) || 0)
         }
       }
-      result[key] = map
-    }
-    return result
-  }, [yearData])
+      return map
+    })
+  }, [activeMonthSlots, data.budget.years])
 
   // Annual totals per category
   const annualCategoryTotals = useMemo(() => {
     const totals: Record<string, number> = {}
-    for (const map of Object.values(monthlyActuals)) {
+    for (const map of monthlyActuals) {
       for (const [id, amt] of Object.entries(map)) {
         totals[id] = (totals[id] ?? 0) + amt
       }
@@ -446,30 +598,23 @@ export default function Overview() {
 
   // Monthly trend data
   const monthlyTrendData = useMemo((): TrendDatum[] => {
-    return MONTH_KEYS.map((key, i) => {
-      const actuals = monthlyActuals[key]
+    return activeMonthSlots.map(({ abbr }, i) => {
+      const actuals = monthlyActuals[i]
       const income = [...catSets.incomeIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
       const expenses = [...catSets.expenseIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
       const savings = [...catSets.savingsIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
-      return { month: MONTH_ABBR[i], income, expenses, savings }
+      return { month: abbr, income, expenses, savings }
     })
-  }, [monthlyActuals, catSets])
-
-  // Monthly income vs outgoing (expenses + savings)
-  const monthlyIncomeOutgoingData = useMemo((): IncomeOutgoingDatum[] => {
-    return MONTH_KEYS.map((key, i) => {
-      const actuals = monthlyActuals[key]
-      const income = [...catSets.incomeIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
-      const outgoing = [...catSets.expenseIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
-      return { month: MONTH_ABBR[i], income, outgoing }
-    })
-  }, [monthlyActuals, catSets])
+  }, [monthlyActuals, catSets, activeMonthSlots])
 
   // Monthly stacked breakdown
   const monthlyBreakdownData = useMemo((): StackedDatum[] => {
-    return MONTH_KEYS.map((key, i) => {
-      const actuals = monthlyActuals[key]
-      let needs = 0, wants = 0, debt = 0, savings = 0
+    return activeMonthSlots.map(({ abbr }, i) => {
+      const actuals = monthlyActuals[i]
+      let needs = 0,
+        wants = 0,
+        debt = 0,
+        savings = 0
       for (const [id, amt] of Object.entries(actuals)) {
         if (catSets.incomeIds.has(id)) continue
         if (catSets.savingsIds.has(id)) {
@@ -479,19 +624,18 @@ export default function Overview() {
           if (et === 'need') needs += amt
           else if (et === 'want') wants += amt
           else if (et === 'debt') debt += amt
-          // uncategorised non-income expenses are intentionally omitted
         }
       }
-      return { month: MONTH_ABBR[i], needs, wants, debt, savings }
+      return { month: abbr, needs, wants, debt, savings }
     })
-  }, [monthlyActuals, catSets])
+  }, [monthlyActuals, catSets, activeMonthSlots])
 
   // Annual table rows per section
   function buildRows(cats: BudgetCategory[]): AnnualTableRow[] {
     return cats.map((c) => ({
       categoryId: c.id,
       label: c.label,
-      monthlyTotals: MONTH_KEYS.map((key) => monthlyActuals[key][c.id] ?? 0),
+      monthlyTotals: activeMonthSlots.map((_, i) => monthlyActuals[i][c.id] ?? 0),
       annualTotal: annualCategoryTotals[c.id] ?? 0,
     }))
   }
@@ -517,16 +661,28 @@ export default function Overview() {
     [sortedCats, monthlyActuals, annualCategoryTotals]
   )
 
-  // Annual column totals for summary row
-  const annualMonthlyIncome = MONTH_KEYS.map((key) =>
-    [...catSets.incomeIds].reduce((s, id) => s + (monthlyActuals[key][id] ?? 0), 0)
+  // Column totals for summary row
+  const annualMonthlyIncome = activeMonthSlots.map((_, i) =>
+    [...catSets.incomeIds].reduce((s, id) => s + (monthlyActuals[i][id] ?? 0), 0)
   )
-  const annualMonthlyExpenses = MONTH_KEYS.map((key) =>
-    [...catSets.expenseIds].reduce((s, id) => s + (monthlyActuals[key][id] ?? 0), 0)
+  const annualMonthlyExpenses = activeMonthSlots.map((_, i) =>
+    [...catSets.expenseIds].reduce((s, id) => s + (monthlyActuals[i][id] ?? 0), 0)
   )
-  const annualMonthlySavings = MONTH_KEYS.map((key) =>
-    [...catSets.savingsIds].reduce((s, id) => s + (monthlyActuals[key][id] ?? 0), 0)
+  const annualMonthlySavings = activeMonthSlots.map((_, i) =>
+    [...catSets.savingsIds].reduce((s, id) => s + (monthlyActuals[i][id] ?? 0), 0)
   )
+
+  // Synthetic BudgetYear for deep dive — maps active slots into month keys '01'-'12'
+  const activeBudgetYearData = useMemo((): BudgetYear => {
+    if (viewMode === 'year') return data.budget.years[selectedYear] ?? { months: {} }
+    const months: BudgetYear['months'] = {}
+    for (let i = 0; i < activeMonthSlots.length; i++) {
+      const { year, monthKey } = activeMonthSlots[i]
+      const bm = (data.budget.years[year] ?? { months: {} }).months[monthKey]
+      if (bm) months[String(i + 1).padStart(2, '0')] = bm
+    }
+    return { months }
+  }, [viewMode, selectedYear, activeMonthSlots, data.budget.years])
 
   function handleRowClick(categoryId: string) {
     const cat = sortedCats.find((c) => c.id === categoryId)
@@ -541,19 +697,30 @@ export default function Overview() {
         ? 'text-red-500 dark:text-red-400'
         : ''
 
+  const pageTitle = viewMode === 'rolling12' ? 'Rolling 12 Months' : 'Annual Overview'
+  const pageSubtitle =
+    viewMode === 'rolling12'
+      ? `${activeMonthSlots[0].full} – ${activeMonthSlots[11].full}`
+      : `Income, expenses, and savings for ${selectedYear}.`
+
   return (
     <div>
       <PageHeader
-        title="Annual Overview"
-        subtitle={`Income, expenses, and savings for ${selectedYear}.`}
-        actions={<YearSelector year={selectedYear} onChange={setYear} />}
+        title={pageTitle}
+        subtitle={pageSubtitle}
+        actions={
+          <div className="flex items-center gap-2">
+            <ViewToggle mode={viewMode} onChange={setViewMode} />
+            {viewMode === 'year' && <YearSelector year={selectedYear} onChange={setYear} />}
+          </div>
+        }
       />
 
       {/* Hero stats */}
       <HeroStats
         cols={5}
         stats={[
-          { label: 'Annual Income', value: annualIncome > 0 ? fmt(annualIncome) : '$—' },
+          { label: 'Total Income', value: annualIncome > 0 ? fmt(annualIncome) : '$—' },
           { label: 'Total Expenses', value: annualExpenses > 0 ? fmt(annualExpenses) : '$—' },
           { label: 'Total Savings', value: annualSavings > 0 ? fmt(annualSavings) : '$—' },
           {
@@ -594,27 +761,6 @@ export default function Overview() {
         />
       </div>
 
-      {/* Income vs outgoing */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <SectionHeading>Income vs Outgoing</SectionHeading>
-          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#10b981' }} />
-              Income
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#f43f5e' }} />
-              Outgoing
-            </span>
-          </div>
-        </div>
-        <ExpandableChart
-          title="Income vs Outgoing"
-          renderChart={(h) => <IncomeVsOutgoingChart data={monthlyIncomeOutgoingData} height={h} />}
-        />
-      </div>
-
       {/* Stacked spending breakdown */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-3">
@@ -639,63 +785,90 @@ export default function Overview() {
         />
       </div>
 
-      {/* Annual breakdown table */}
+      {/* Breakdown table */}
       <div className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
-          Annual Breakdown
+          {viewMode === 'rolling12' ? 'Rolling Breakdown' : 'Annual Breakdown'}
           <span className="normal-case font-normal tracking-normal text-gray-400 dark:text-gray-600 ml-2">
             — click any row to deep dive
           </span>
         </p>
         <AnnualBreakdownTable
-          monthHeaders={MONTH_ABBR}
-          sections={[
-            { title: 'Income', rows: incomeRows, accentClass: 'text-green-600 dark:text-green-400' },
-            { title: 'Fixed Expenses', rows: fixedRows, accentClass: 'text-gray-600 dark:text-gray-300' },
-            { title: 'Variable Expenses', rows: varRows, accentClass: 'text-gray-600 dark:text-gray-300' },
-            { title: 'Savings & Investments', rows: savingsRows, accentClass: 'text-indigo-600 dark:text-indigo-400' },
-          ] satisfies AnnualSectionConfig[]}
-          summaryRows={[
-            {
-              label: 'Total Expenses',
-              rowClass: 'border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold',
-              stickyClass: 'bg-gray-100 dark:bg-gray-800/50',
-              labelClass: 'text-gray-700 dark:text-gray-200',
-              monthClass: 'text-gray-600 dark:text-gray-300',
-              months: annualMonthlyExpenses.map((v) =>
-                v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>
-              ),
-              total: annualExpenses > 0 ? fmt(annualExpenses) : '—',
-              totalClass: 'text-gray-700 dark:text-gray-200',
-            },
-            {
-              label: 'Total Savings',
-              rowClass: 'bg-gray-100 dark:bg-gray-800/50 font-semibold border-b border-gray-200 dark:border-gray-700',
-              stickyClass: 'bg-gray-100 dark:bg-gray-800/50',
-              labelClass: 'text-gray-700 dark:text-gray-200',
-              monthClass: 'text-indigo-600 dark:text-indigo-400',
-              months: annualMonthlySavings.map((v) =>
-                v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>
-              ),
-              total: annualSavings > 0 ? fmt(annualSavings) : '—',
-              totalClass: 'text-indigo-600 dark:text-indigo-400',
-            },
-            {
-              label: 'Savings Rate',
-              rowClass: 'bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700',
-              stickyClass: 'bg-gray-50 dark:bg-gray-900/40',
-              labelClass: 'text-gray-500 dark:text-gray-400 text-xs font-medium',
-              monthClass: 'text-xs text-gray-400 dark:text-gray-500',
-              months: MONTH_KEYS.map((_, i) => {
-                const inc = annualMonthlyIncome[i]
-                const sav = annualMonthlySavings[i]
-                const rate = inc > 0 ? (sav / inc) * 100 : null
-                return rate !== null ? `${rate.toFixed(0)}%` : <span className="text-gray-300 dark:text-gray-700">—</span>
-              }),
-              total: annualIncome > 0 ? `${savingsRate.toFixed(1)}%` : '—',
-              totalClass: `text-xs font-medium ${savingsRate >= 20 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`,
-            },
-          ] satisfies AnnualSummaryRow[]}
+          monthHeaders={activeMonthSlots.map((s) => s.abbr)}
+          sections={
+            [
+              {
+                title: 'Income',
+                rows: incomeRows,
+                accentClass: 'text-green-600 dark:text-green-400',
+              },
+              {
+                title: 'Fixed Expenses',
+                rows: fixedRows,
+                accentClass: 'text-gray-600 dark:text-gray-300',
+              },
+              {
+                title: 'Variable Expenses',
+                rows: varRows,
+                accentClass: 'text-gray-600 dark:text-gray-300',
+              },
+              {
+                title: 'Savings & Investments',
+                rows: savingsRows,
+                accentClass: 'text-indigo-600 dark:text-indigo-400',
+              },
+            ] satisfies AnnualSectionConfig[]
+          }
+          summaryRows={
+            [
+              {
+                label: 'Total Expenses',
+                rowClass:
+                  'border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold',
+                stickyClass: 'bg-gray-100 dark:bg-gray-800/50',
+                labelClass: 'text-gray-700 dark:text-gray-200',
+                monthClass: 'text-gray-600 dark:text-gray-300',
+                months: annualMonthlyExpenses.map((v) =>
+                  v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>
+                ),
+                total: annualExpenses > 0 ? fmt(annualExpenses) : '—',
+                totalClass: 'text-gray-700 dark:text-gray-200',
+              },
+              {
+                label: 'Total Savings',
+                rowClass:
+                  'bg-gray-100 dark:bg-gray-800/50 font-semibold border-b border-gray-200 dark:border-gray-700',
+                stickyClass: 'bg-gray-100 dark:bg-gray-800/50',
+                labelClass: 'text-gray-700 dark:text-gray-200',
+                monthClass: 'text-indigo-600 dark:text-indigo-400',
+                months: annualMonthlySavings.map((v) =>
+                  v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>
+                ),
+                total: annualSavings > 0 ? fmt(annualSavings) : '—',
+                totalClass: 'text-indigo-600 dark:text-indigo-400',
+              },
+              {
+                label: 'Savings Rate',
+                rowClass:
+                  'bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700',
+                stickyClass: 'bg-gray-50 dark:bg-gray-900/40',
+                labelClass: 'text-gray-500 dark:text-gray-400 text-xs font-medium',
+                monthClass: 'text-xs text-gray-400 dark:text-gray-500',
+                months: activeMonthSlots.map((_, i) => {
+                  const inc = annualMonthlyIncome[i]
+                  const sav = annualMonthlySavings[i]
+                  const rate = inc > 0 ? (sav / inc) * 100 : null
+                  return rate !== null ? (
+                    `${rate.toFixed(0)}%`
+                  ) : (
+                    <span className="text-gray-300 dark:text-gray-700">—</span>
+                  )
+                }),
+                total: annualIncome > 0 ? `${savingsRate.toFixed(1)}%` : '—',
+                totalClass: `text-xs font-medium ${savingsRate >= 20 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`,
+              },
+            ] satisfies AnnualSummaryRow[]
+          }
           onRowClick={handleRowClick}
         />
       </div>
@@ -704,7 +877,9 @@ export default function Overview() {
       {deepDiveCategory && (
         <CategoryDeepDive
           category={deepDiveCategory}
-          yearData={yearData}
+          yearData={activeBudgetYearData}
+          monthAbbr={activeMonthSlots.map((s) => s.abbr)}
+          monthFull={activeMonthSlots.map((s) => s.full)}
           onClose={() => setDeepDiveCategory(null)}
         />
       )}

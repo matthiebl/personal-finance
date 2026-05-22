@@ -3,8 +3,8 @@ import { useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { DonutChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
-import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
 import type { TxSuggestion } from '../components/inputs'
+import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
 import { useAppData } from '../context/AppDataContext'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
@@ -227,7 +227,10 @@ function TransactionTable({
   sections: { label: string; rows: BudgetRow[] }[]
   suggestions: TxSuggestion[]
   onUpdate: (id: string, field: keyof Transaction, value: string) => void
-  onApplySuggestion: (id: string, patch: { description: string; categoryId: string; tags: string }) => void
+  onApplySuggestion: (
+    id: string,
+    patch: { description: string; categoryId: string; tags: string }
+  ) => void
   onAdd: () => void
   onRemove: (id: string) => void
   onCondense: () => void

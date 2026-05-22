@@ -29,15 +29,33 @@ const SEED_IDS = {
 } as const
 
 const SEED_CATEGORIES: BudgetCategory[] = [
-  { id: SEED_IDS.salary,        label: 'Salary / Wages',    section: 'income',   order: 0 },
-  { id: SEED_IDS.rent,          label: 'Rent / Mortgage',   section: 'fixed',    expenseType: 'need', order: 1 },
-  { id: SEED_IDS.phone,         label: 'Phone',             section: 'fixed',    expenseType: 'need', order: 2 },
-  { id: SEED_IDS.internet,      label: 'Internet',          section: 'fixed',    expenseType: 'need', order: 3 },
-  { id: SEED_IDS.groceries,     label: 'Groceries',         section: 'variable', expenseType: 'need', order: 4 },
-  { id: SEED_IDS.transport,     label: 'Transport',         section: 'variable', expenseType: 'need', order: 5 },
-  { id: SEED_IDS.utilities,     label: 'Utilities',         section: 'variable', expenseType: 'need', order: 6 },
-  { id: SEED_IDS.emergencyFund, label: 'Emergency Fund',    section: 'savings',  order: 7 },
-  { id: SEED_IDS.investments,   label: 'Investments',       section: 'savings',  order: 8 },
+  { id: SEED_IDS.salary, label: 'Salary / Wages', section: 'income', order: 0 },
+  { id: SEED_IDS.rent, label: 'Rent / Mortgage', section: 'fixed', expenseType: 'need', order: 1 },
+  { id: SEED_IDS.phone, label: 'Phone', section: 'fixed', expenseType: 'need', order: 2 },
+  { id: SEED_IDS.internet, label: 'Internet', section: 'fixed', expenseType: 'need', order: 3 },
+  {
+    id: SEED_IDS.groceries,
+    label: 'Groceries',
+    section: 'variable',
+    expenseType: 'need',
+    order: 4,
+  },
+  {
+    id: SEED_IDS.transport,
+    label: 'Transport',
+    section: 'variable',
+    expenseType: 'need',
+    order: 5,
+  },
+  {
+    id: SEED_IDS.utilities,
+    label: 'Utilities',
+    section: 'variable',
+    expenseType: 'need',
+    order: 6,
+  },
+  { id: SEED_IDS.emergencyFund, label: 'Emergency Fund', section: 'savings', order: 7 },
+  { id: SEED_IDS.investments, label: 'Investments', section: 'savings', order: 8 },
 ]
 
 const SEED_EMERGENCY_FUND: EmergencyFundData = {

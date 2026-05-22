@@ -5,7 +5,10 @@ export function fmt(n: number): string {
 
 export function fmtCents(n: number): string {
   const abs = Math.abs(n)
-  return (n < 0 ? '-$' : '$') + abs.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  return (
+    (n < 0 ? '-$' : '$') +
+    abs.toLocaleString('en-AU', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+  )
 }
 
 export function fmtAxis(n: number): string {
@@ -18,7 +21,7 @@ export function calcMonthsToGoal(
   balance: number,
   target: number,
   contribution: number,
-  annualRate: number,
+  annualRate: number
 ): number | null {
   if (target <= 0 || balance >= target) return null
   if (contribution <= 0 && annualRate <= 0) return null

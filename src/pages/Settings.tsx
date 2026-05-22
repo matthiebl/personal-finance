@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { PageHeader, SectionHeading } from '../components/layout'
 import { useAppData } from '../context/AppDataContext'
 import type { BudgetCategory } from '../lib/types'
@@ -30,8 +30,14 @@ type PendingDelete = {
 }
 
 export default function Settings() {
-  const { data, setStorageMode, storageUsage, condenseTransactions, removeCategory, reorderCategories } =
-    useAppData()
+  const {
+    data,
+    setStorageMode,
+    storageUsage,
+    condenseTransactions,
+    removeCategory,
+    reorderCategories,
+  } = useAppData()
 
   // ─── Condense ─────────────────────────────────────────────────────────────
 
@@ -78,7 +84,7 @@ export default function Settings() {
   )
 
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
-  const dragId = useRef<string | null>(null)
+  const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
 
   function countCategoryUsage(id: string) {
@@ -100,9 +106,9 @@ export default function Settings() {
   }
 
   function handleDrop(targetId: string, sectionCats: BudgetCategory[]) {
-    const dragged = dragId.current
+    const dragged = dragId
     setDragOverId(null)
-    dragId.current = null
+    setDragId(null)
     if (!dragged || dragged === targetId) return
     const ids = sectionCats.map((c) => c.id)
     const fromIdx = ids.indexOf(dragged)
@@ -119,8 +125,7 @@ export default function Settings() {
     if (budgetCount > 0) parts.push(`${budgetCount} budget month${budgetCount !== 1 ? 's' : ''}`)
     if (transactionCount > 0)
       parts.push(`${transactionCount} transaction${transactionCount !== 1 ? 's' : ''}`)
-    if (parts.length === 0)
-      return 'This category has no associated data and can be safely deleted.'
+    if (parts.length === 0) return 'This category has no associated data and can be safely deleted.'
     return `This category is referenced in ${parts.join(' and ')}. The data will remain but the category will no longer appear.`
   }
 
@@ -133,7 +138,9 @@ export default function Settings() {
         <SectionHeading>Storage</SectionHeading>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
           <div className="p-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Storage mode</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+              Storage mode
+            </p>
             <div className="space-y-2">
               <label className="flex items-start gap-3 cursor-pointer">
                 <input
@@ -175,7 +182,9 @@ export default function Settings() {
           </div>
 
           <div className="p-4">
-            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Storage usage</p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+              Storage usage
+            </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
               {formatBytes(storageUsage.usedBytes)} used
               {storageUsage.totalBytes ? ` of ${formatBytes(storageUsage.totalBytes)}` : ''}
@@ -184,11 +193,7 @@ export default function Settings() {
               <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    usagePct > 90
-                      ? 'bg-red-500'
-                      : usagePct > 70
-                        ? 'bg-amber-500'
-                        : 'bg-indigo-500'
+                    usagePct > 90 ? 'bg-red-500' : usagePct > 70 ? 'bg-amber-500' : 'bg-indigo-500'
                   }`}
                   style={{ width: `${usagePct}%` }}
                 />
@@ -222,17 +227,25 @@ export default function Settings() {
                       <div
                         key={cat.id}
                         draggable
-                        onDragStart={() => { dragId.current = cat.id }}
-                        onDragOver={(e) => { e.preventDefault(); setDragOverId(cat.id) }}
+                        onDragStart={() => {
+                          setDragId(cat.id)
+                        }}
+                        onDragOver={(e) => {
+                          e.preventDefault()
+                          setDragOverId(cat.id)
+                        }}
                         onDragLeave={() => setDragOverId((prev) => (prev === cat.id ? null : prev))}
                         onDrop={() => handleDrop(cat.id, cats)}
-                        onDragEnd={() => { dragId.current = null; setDragOverId(null) }}
+                        onDragEnd={() => {
+                          setDragId(null)
+                          setDragOverId(null)
+                        }}
                         className={`flex items-center gap-3 px-4 py-2.5 select-none transition-colors ${
-                          dragOverId === cat.id && dragId.current !== cat.id
+                          dragOverId === cat.id && dragId !== cat.id
                             ? 'bg-indigo-50 dark:bg-indigo-900/20'
                             : ''
                         }`}
-                        style={{ opacity: dragId.current === cat.id ? 0.4 : 1 }}
+                        style={{ opacity: dragId === cat.id ? 0.4 : 1 }}
                       >
                         {/* Drag handle */}
                         <svg
@@ -261,7 +274,14 @@ export default function Settings() {
                           className="shrink-0 text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-500 transition-colors"
                           title="Delete category"
                         >
-                          <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                          <svg
+                            className="w-4 h-4"
+                            viewBox="0 0 16 16"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                          >
                             <line x1="3" y1="3" x2="13" y2="13" />
                             <line x1="13" y1="3" x2="3" y2="13" />
                           </svg>
@@ -312,7 +332,9 @@ export default function Settings() {
             )}
           </div>
           {monthKeys.length === 0 && (
-            <p className="text-xs text-gray-400 dark:text-gray-600 mt-3">No transaction data yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-600 mt-3">
+              No transaction data yet.
+            </p>
           )}
         </div>
       </div>

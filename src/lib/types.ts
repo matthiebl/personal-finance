@@ -27,7 +27,7 @@ export type BudgetYear = {
 }
 
 export type EmergencyFundData = {
-  expenses: Record<string, string>  // categoryId -> adjustment amount
+  expenses: Record<string, string> // categoryId -> adjustment amount
   coverageMonths: string
   currentBalance: string
   monthlyContribution: string

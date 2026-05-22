@@ -74,7 +74,10 @@ function setMonth(data: AppData, year: string, month: string, bm: BudgetMonth): 
 export function AppDataProvider({ children }: { children: React.ReactNode }) {
   const [data, setData] = useState<AppData>(() => structuredClone(DEFAULT_APP_DATA))
   const [loaded, setLoaded] = useState(false)
-  const [storageUsage, setStorageUsage] = useState<{ usedBytes: number; totalBytes: number | null }>({
+  const [storageUsage, setStorageUsage] = useState<{
+    usedBytes: number
+    totalBytes: number | null
+  }>({
     usedBytes: 0,
     totalBytes: null,
   })
@@ -314,6 +317,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAppData(): AppDataContextValue {
   const ctx = useContext(AppDataContext)
   if (!ctx) throw new Error('useAppData must be used within AppDataProvider')

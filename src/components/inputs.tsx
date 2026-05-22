@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
 import type { InputHTMLAttributes } from 'react'
+import { useMemo, useState } from 'react'
 
 export type TxSuggestion = {
   description: string
@@ -67,7 +67,11 @@ export function DescriptionAutocomplete({
         type="text"
         placeholder="Description"
         value={value}
-        onChange={(e) => { onChange(e.target.value); setOpen(true); setHighlightIdx(-1) }}
+        onChange={(e) => {
+          onChange(e.target.value)
+          setOpen(true)
+          setHighlightIdx(-1)
+        }}
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={handleKeyDown}
@@ -98,7 +102,9 @@ export function DescriptionAutocomplete({
                   </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
                     {s.categoryLabel}
-                    {s.tags && <span className="ml-2 text-gray-300 dark:text-gray-600">{s.tags}</span>}
+                    {s.tags && (
+                      <span className="ml-2 text-gray-300 dark:text-gray-600">{s.tags}</span>
+                    )}
                   </p>
                 </div>
               </li>
