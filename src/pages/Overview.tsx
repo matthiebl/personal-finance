@@ -158,12 +158,14 @@ function CategoryDeepDive({
   yearData,
   monthAbbr = MONTH_ABBR,
   monthFull = MONTH_FULL,
+  totalActiveMonths,
   onClose,
 }: {
   category: DeepDiveCategory
   yearData: BudgetYear
   monthAbbr?: string[]
   monthFull?: string[]
+  totalActiveMonths: number
   onClose: () => void
 }) {
   const [excludedTags, setExcludedTags] = useState<Set<string>>(new Set())
@@ -254,6 +256,7 @@ function CategoryDeepDive({
   }, [filteredTxWithMonth, monthFull])
 
   const grandTotal = filteredTxWithMonth.reduce((s, { tx }) => s + (parseFloat(tx.amount) || 0), 0)
+  const avgPerMonth = totalActiveMonths > 0 ? grandTotal / totalActiveMonths : 0
 
   function toggleTag(tag: string) {
     setExcludedTags((prev) => {
@@ -286,6 +289,11 @@ function CategoryDeepDive({
             <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 tabular-nums">
               {grandTotal > 0 ? fmtCents(grandTotal) : '$—'} across {filteredTxWithMonth.length}{' '}
               transaction{filteredTxWithMonth.length !== 1 ? 's' : ''}
+              {totalActiveMonths > 1 && (
+                <span className="ml-2 text-gray-300 dark:text-gray-600">
+                  · avg {fmtCents(avgPerMonth)}/mo
+                </span>
+              )}
             </p>
           </div>
           <button
@@ -630,6 +638,27 @@ export default function Overview() {
     })
   }, [monthlyActuals, catSets, activeMonthSlots])
 
+  // Average spending by type (over months that have any transaction)
+  const spendingTypeAverages = useMemo(() => {
+    const totals = monthlyBreakdownData.reduce(
+      (acc, d) => ({
+        needs: acc.needs + d.needs,
+        wants: acc.wants + d.wants,
+        debt: acc.debt + d.debt,
+        savings: acc.savings + d.savings,
+      }),
+      { needs: 0, wants: 0, debt: 0, savings: 0 }
+    )
+    const active = monthlyActuals.filter((m) => Object.keys(m).length > 0).length
+    const n = active || 1
+    return {
+      needs: totals.needs / n,
+      wants: totals.wants / n,
+      debt: totals.debt / n,
+      savings: totals.savings / n,
+    }
+  }, [monthlyBreakdownData, monthlyActuals])
+
   // Annual table rows per section
   function buildRows(cats: BudgetCategory[]): AnnualTableRow[] {
     return cats.map((c) => ({
@@ -785,6 +814,29 @@ export default function Overview() {
         />
       </div>
 
+      {/* Average spending by type */}
+      <HeroStats
+        cols={4}
+        stats={[
+          {
+            label: 'Avg Needs / mo',
+            value: spendingTypeAverages.needs > 0 ? fmt(spendingTypeAverages.needs) : '$—',
+          },
+          {
+            label: 'Avg Wants / mo',
+            value: spendingTypeAverages.wants > 0 ? fmt(spendingTypeAverages.wants) : '$—',
+          },
+          {
+            label: 'Avg Debt / mo',
+            value: spendingTypeAverages.debt > 0 ? fmt(spendingTypeAverages.debt) : '$—',
+          },
+          {
+            label: 'Avg Savings / mo',
+            value: spendingTypeAverages.savings > 0 ? fmt(spendingTypeAverages.savings) : '$—',
+          },
+        ]}
+      />
+
       {/* Breakdown table */}
       <div className="mb-8">
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 mb-3">
@@ -880,6 +932,7 @@ export default function Overview() {
           yearData={activeBudgetYearData}
           monthAbbr={activeMonthSlots.map((s) => s.abbr)}
           monthFull={activeMonthSlots.map((s) => s.full)}
+          totalActiveMonths={monthlyActuals.filter((m) => Object.keys(m).length > 0).length}
           onClose={() => setDeepDiveCategory(null)}
         />
       )}
