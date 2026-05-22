@@ -132,7 +132,8 @@ export function CurrencyInput({
   compact?: boolean
 }) {
   const handleBlur = () => {
-    const num = parseFloat(value)
+    const cleaned = value.replace(/[$,\s]/g, '')
+    const num = parseFloat(cleaned)
     if (!isNaN(num)) onChange(num.toFixed(2))
   }
   return (

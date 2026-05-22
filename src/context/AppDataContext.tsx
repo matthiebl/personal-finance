@@ -6,6 +6,7 @@ import type {
   BudgetMonth,
   EmergencyFundData,
   ExpenseType,
+  NetworthEntry,
   SinkingFundRow,
   StorageMode,
   Transaction,
@@ -36,6 +37,16 @@ type AppDataContextValue = {
   addSinkingFund: () => void
   updateSinkingFund: (id: string, patch: Partial<Omit<SinkingFundRow, 'id'>>) => void
   removeSinkingFund: (id: string) => void
+
+  // Net worth
+  addNetworthEntry: (type: 'asset' | 'liability') => void
+  updateNetworthEntry: (
+    type: 'asset' | 'liability',
+    id: string,
+    patch: Partial<Omit<NetworthEntry, 'id'>>,
+  ) => void
+  removeNetworthEntry: (type: 'asset' | 'liability', id: string) => void
+  setNetworthValue: (yearMonth: string, entryId: string, amount: string) => void
 
   // Settings
   setStorageMode: (mode: StorageMode) => void
@@ -286,6 +297,67 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => ({ ...prev, sinkingFunds: prev.sinkingFunds.filter((r) => r.id !== id) }))
   }
 
+  // ─── Net worth ────────────────────────────────────────────────────────────
+
+  function addNetworthEntry(type: 'asset' | 'liability') {
+    const entry: NetworthEntry = { id: crypto.randomUUID(), name: '' }
+    const key = type === 'asset' ? 'assets' : 'liabilities'
+    setData((prev) => ({
+      ...prev,
+      networth: { ...prev.networth, [key]: [...prev.networth[key], entry] },
+    }))
+  }
+
+  function updateNetworthEntry(
+    type: 'asset' | 'liability',
+    id: string,
+    patch: Partial<Omit<NetworthEntry, 'id'>>,
+  ) {
+    const key = type === 'asset' ? 'assets' : 'liabilities'
+    setData((prev) => ({
+      ...prev,
+      networth: {
+        ...prev.networth,
+        [key]: prev.networth[key].map((e) => (e.id === id ? { ...e, ...patch } : e)),
+      },
+    }))
+  }
+
+  function removeNetworthEntry(type: 'asset' | 'liability', id: string) {
+    const key = type === 'asset' ? 'assets' : 'liabilities'
+    setData((prev) => {
+      const cleanedMonths: Record<string, Record<string, string>> = {}
+      for (const [ym, entries] of Object.entries(prev.networth.months)) {
+        const { [id]: _removed, ...rest } = entries
+        if (Object.keys(rest).length > 0) cleanedMonths[ym] = rest
+      }
+      return {
+        ...prev,
+        networth: {
+          ...prev.networth,
+          [key]: prev.networth[key].filter((e) => e.id !== id),
+          months: cleanedMonths,
+        },
+      }
+    })
+  }
+
+  function setNetworthValue(yearMonth: string, entryId: string, amount: string) {
+    setData((prev) => ({
+      ...prev,
+      networth: {
+        ...prev.networth,
+        months: {
+          ...prev.networth.months,
+          [yearMonth]: {
+            ...(prev.networth.months[yearMonth] ?? {}),
+            [entryId]: amount,
+          },
+        },
+      },
+    }))
+  }
+
   // ─── Settings ────────────────────────────────────────────────────────────
 
   function setStorageMode(mode: StorageMode) {
@@ -309,6 +381,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     addSinkingFund,
     updateSinkingFund,
     removeSinkingFund,
+    addNetworthEntry,
+    updateNetworthEntry,
+    removeNetworthEntry,
+    setNetworthValue,
     setStorageMode,
     storageUsage,
     storageError,

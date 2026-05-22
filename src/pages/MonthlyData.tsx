@@ -5,7 +5,7 @@ import { DonutChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import type { TxSuggestion } from '../components/inputs'
 import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
-import { PageHeader, SectionHeading } from '../components/layout'
+import { MonthSelector, PageHeader, SectionHeading, YearSelector } from '../components/layout'
 import { useAppData } from '../context/AppDataContext'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, ExpenseType, Transaction } from '../lib/types'
@@ -691,37 +691,9 @@ export default function MonthlyData() {
       >
         {/* Year + month picker */}
         <div className="flex items-center gap-2 mt-4 flex-wrap">
-          <div className="flex items-center rounded-full border border-gray-200 dark:border-gray-700">
-            <button
-              onClick={() => setYear(-1)}
-              className="px-2.5 py-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-l-full transition-colors text-sm leading-none"
-            >
-              ‹
-            </button>
-            <span className="px-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums select-none">
-              {selectedYear}
-            </span>
-            <button
-              onClick={() => setYear(1)}
-              className="px-2.5 py-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition-colors text-sm leading-none"
-            >
-              ›
-            </button>
-          </div>
+          <YearSelector year={selectedYear} onChange={setYear} />
           <div className="w-px h-5 bg-gray-200 dark:bg-gray-700 mx-0.5" />
-          {MONTHS.map((month, i) => (
-            <button
-              key={month}
-              onClick={() => setMonthIdx(i)}
-              className={`px-3 py-1.5 rounded-full text-sm transition-colors ${
-                i === selectedMonthIdx
-                  ? 'bg-gray-900 dark:bg-white text-white dark:text-gray-900 font-medium'
-                  : 'border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-            >
-              {month.slice(0, 3)}
-            </button>
-          ))}
+          <MonthSelector selectedIdx={selectedMonthIdx} onChange={setMonthIdx} />
         </div>
       </PageHeader>
 

@@ -758,3 +758,215 @@ export function ExpandableChart({
     </div>
   )
 }
+
+// ─── Networth Stacked Chart ───────────────────────────────────────────────────
+
+export const NETWORTH_ASSET_COLORS = [
+  '#10b981', // emerald-500
+  '#3b82f6', // blue-500
+  '#84cc16', // lime-500
+  '#0891b2', // cyan-600
+  '#34d399', // emerald-400
+  '#60a5fa', // blue-400
+  '#a3e635', // lime-400
+  '#22d3ee', // cyan-400
+]
+export const NETWORTH_LIABILITY_COLORS = [
+  '#ef4444', // red-500
+  '#f97316', // orange-500
+  '#db2777', // pink-600
+  '#b91c1c', // red-700
+  '#fb923c', // orange-400
+  '#ec4899', // pink-500
+  '#dc2626', // red-600
+  '#ea580c', // orange-600
+]
+
+export type NetworthSeriesEntry = { id: string; label: string; color: string }
+export type NetworthDatum = { month: string; networth: number; [key: string]: number | string }
+
+type NetworthTooltipPayload = { name: string; value: number; fill: string; dataKey: string }
+
+function NetworthTooltip({
+  active,
+  payload,
+  label,
+  assetSeries,
+  liabilitySeries,
+}: {
+  active?: boolean
+  payload?: NetworthTooltipPayload[]
+  label?: string
+  assetSeries: NetworthSeriesEntry[]
+  liabilitySeries: NetworthSeriesEntry[]
+}) {
+  if (!active || !payload?.length) return null
+
+  const assetIds = new Set(assetSeries.map((s) => s.id))
+  const liabilityIds = new Set(liabilitySeries.map((s) => s.id))
+
+  const assetItems = payload.filter((p) => assetIds.has(p.dataKey) && p.value !== 0)
+  const liabilityItems = payload.filter((p) => liabilityIds.has(p.dataKey) && p.value !== 0)
+  const networthItem = payload.find((p) => p.dataKey === 'networth')
+
+  const totalAssets = assetItems.reduce((s, p) => s + p.value, 0)
+  const totalLiabilities = liabilityItems.reduce((s, p) => s + Math.abs(p.value), 0)
+
+  if (totalAssets === 0 && totalLiabilities === 0) return null
+
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs min-w-36">
+      <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
+      {assetItems.length > 0 && (
+        <>
+          <p className="text-gray-400 dark:text-gray-500 uppercase tracking-wide text-[10px] mb-0.5">
+            Assets
+          </p>
+          {assetItems.map((p) => (
+            <div key={p.dataKey} className="flex items-center justify-between gap-4 mb-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
+                <span className="text-gray-500 dark:text-gray-400 truncate max-w-28">{p.name}</span>
+              </div>
+              <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
+            </div>
+          ))}
+        </>
+      )}
+      {liabilityItems.length > 0 && (
+        <>
+          <p className="text-gray-400 dark:text-gray-500 uppercase tracking-wide text-[10px] mt-1.5 mb-0.5">
+            Liabilities
+          </p>
+          {liabilityItems.map((p) => (
+            <div key={p.dataKey} className="flex items-center justify-between gap-4 mb-0.5">
+              <div className="flex items-center gap-1.5">
+                <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
+                <span className="text-gray-500 dark:text-gray-400 truncate max-w-28">{p.name}</span>
+              </div>
+              <span className="tabular-nums text-gray-700 dark:text-gray-200">
+                {fmt(Math.abs(p.value))}
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+      <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 space-y-0.5">
+        {totalAssets > 0 && totalLiabilities > 0 && (
+          <>
+            <div className="flex justify-between">
+              <span className="text-gray-400 dark:text-gray-500">Total Assets</span>
+              <span className="tabular-nums text-green-600 dark:text-green-400">
+                {fmt(totalAssets)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-400 dark:text-gray-500">Total Liabilities</span>
+              <span className="tabular-nums text-red-500 dark:text-red-400">
+                {fmt(totalLiabilities)}
+              </span>
+            </div>
+          </>
+        )}
+        {networthItem !== undefined && (
+          <div className="flex justify-between font-medium">
+            <span className="text-gray-700 dark:text-gray-200">Net Worth</span>
+            <span
+              className={`tabular-nums ${networthItem.value >= 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-red-500 dark:text-red-400'}`}
+            >
+              {fmt(networthItem.value)}
+            </span>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function NetworthStackedChart({
+  data,
+  assetSeries,
+  liabilitySeries,
+  height = 320,
+}: {
+  data: NetworthDatum[]
+  assetSeries: NetworthSeriesEntry[]
+  liabilitySeries: NetworthSeriesEntry[]
+  height?: number
+}) {
+  const hasData = data.some(
+    (d) => d.networth !== 0 || assetSeries.some((s) => (d[s.id] as number) !== 0),
+  )
+  if (!hasData) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <p className="text-xs text-gray-400 dark:text-gray-600">
+          Add assets and liabilities to see net worth over time
+        </p>
+      </div>
+    )
+  }
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tickFormatter={fmtAxis}
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          width={48}
+        />
+        <ReferenceLine y={0} stroke="#e5e7eb" strokeWidth={1} />
+        <Tooltip
+          content={
+            <NetworthTooltip assetSeries={assetSeries} liabilitySeries={liabilitySeries} />
+          }
+          cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
+        />
+        {assetSeries.map((s) => (
+          <Area
+            key={s.id}
+            type="monotone"
+            dataKey={s.id}
+            name={s.label}
+            stackId="assets"
+            fill={s.color}
+            stroke={s.color}
+            fillOpacity={0.4}
+            strokeWidth={1}
+            dot={false}
+          />
+        ))}
+        {liabilitySeries.map((s) => (
+          <Area
+            key={s.id}
+            type="monotone"
+            dataKey={s.id}
+            name={s.label}
+            stackId="liabilities"
+            fill={s.color}
+            stroke={s.color}
+            fillOpacity={0.4}
+            strokeWidth={1}
+            dot={false}
+          />
+        ))}
+        <Line
+          type="monotone"
+          dataKey="networth"
+          name="Net Worth"
+          stroke="#6366f1"
+          strokeWidth={2.5}
+          dot={false}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+}

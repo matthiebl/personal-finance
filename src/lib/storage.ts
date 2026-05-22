@@ -79,6 +79,11 @@ export const DEFAULT_APP_DATA: AppData = {
   },
   emergencyFund: SEED_EMERGENCY_FUND,
   sinkingFunds: [],
+  networth: {
+    assets: [],
+    liabilities: [],
+    months: {},
+  },
 }
 
 export class LocalStorageAdapter implements StorageAdapter {
@@ -86,7 +91,15 @@ export class LocalStorageAdapter implements StorageAdapter {
     try {
       const raw = localStorage.getItem(STORAGE_KEY)
       if (!raw) return structuredClone(DEFAULT_APP_DATA)
-      return JSON.parse(raw) as AppData
+      const parsed = JSON.parse(raw) as Partial<AppData>
+      return {
+        ...structuredClone(DEFAULT_APP_DATA),
+        ...parsed,
+        networth: {
+          ...DEFAULT_APP_DATA.networth,
+          ...(parsed.networth ?? {}),
+        },
+      }
     } catch {
       return structuredClone(DEFAULT_APP_DATA)
     }

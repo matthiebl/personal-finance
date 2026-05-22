@@ -1,5 +1,4 @@
 import { useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { DonutSegment, StackedDatum, TrendDatum } from '../components/charts'
 import {
@@ -9,7 +8,14 @@ import {
   MonthlyTrendChart,
 } from '../components/charts'
 import { HeroStats } from '../components/hero'
-import { PageHeader, SectionHeading } from '../components/layout'
+import type { MonthSlot } from '../components/layout'
+import {
+  PageHeader,
+  SectionHeading,
+  ViewToggle,
+  YearSelector,
+  useAnnualPicker,
+} from '../components/layout'
 import type { AnnualSectionConfig, AnnualSummaryRow, AnnualTableRow } from '../components/table'
 import { AnnualBreakdownTable } from '../components/table'
 import { useAppData } from '../context/AppDataContext'
@@ -65,66 +71,6 @@ type DeepDiveCategory = {
   categoryId: string
   label: string
   section: BudgetCategory['section']
-}
-
-type ViewMode = 'year' | 'rolling12'
-
-type MonthSlot = {
-  year: string
-  monthKey: string
-  abbr: string
-  full: string
-}
-
-// ─── YearSelector ─────────────────────────────────────────────────────────────
-
-function YearSelector({ year, onChange }: { year: string; onChange: (delta: number) => void }) {
-  return (
-    <div className="flex items-center rounded-full border border-gray-200 dark:border-gray-700">
-      <button
-        onClick={() => onChange(-1)}
-        className="px-2.5 py-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-l-full transition-colors text-sm leading-none"
-      >
-        ‹
-      </button>
-      <span className="px-2.5 text-sm font-semibold text-gray-700 dark:text-gray-300 tabular-nums select-none">
-        {year}
-      </span>
-      <button
-        onClick={() => onChange(1)}
-        className="px-2.5 py-1.5 text-gray-400 dark:text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-r-full transition-colors text-sm leading-none"
-      >
-        ›
-      </button>
-    </div>
-  )
-}
-
-function ViewToggle({ mode, onChange }: { mode: ViewMode; onChange: (m: ViewMode) => void }) {
-  return (
-    <div className="flex items-center rounded-full border border-gray-200 dark:border-gray-700 overflow-hidden">
-      <button
-        onClick={() => onChange('year')}
-        className={`px-3 py-1.5 text-sm transition-colors rounded-l-full ${
-          mode === 'year'
-            ? 'bg-indigo-600 text-white'
-            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-        }`}
-      >
-        Year
-      </button>
-      <button
-        onClick={() => onChange('rolling12')}
-        className={`px-3 py-1.5 text-sm transition-colors rounded-r-full ${
-          mode === 'rolling12'
-            ? 'bg-indigo-600 text-white'
-            : 'text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-        }`}
-      >
-        Rolling 12M
-      </button>
-    </div>
-  )
 }
 
 // ─── CategoryDeepDive ─────────────────────────────────────────────────────────
@@ -495,30 +441,8 @@ function CategoryDeepDive({
 
 export default function Overview() {
   const { data } = useAppData()
-  const [searchParams, setSearchParams] = useSearchParams()
-  const selectedYear = searchParams.get('year') ?? String(new Date().getFullYear())
-  const viewMode = (searchParams.get('view') ?? 'year') as ViewMode
+  const { selectedYear, viewMode, setYear, setViewMode } = useAnnualPicker()
   const [deepDiveCategory, setDeepDiveCategory] = useState<DeepDiveCategory | null>(null)
-
-  function setYear(delta: number) {
-    setSearchParams(
-      (p) => {
-        p.set('year', String(parseInt(selectedYear) + delta))
-        return p
-      },
-      { replace: true }
-    )
-  }
-
-  function setViewMode(mode: ViewMode) {
-    setSearchParams(
-      (p) => {
-        p.set('view', mode)
-        return p
-      },
-      { replace: true }
-    )
-  }
 
   // Sorted categories
   const sortedCats = useMemo(

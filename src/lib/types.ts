@@ -44,6 +44,17 @@ export type SinkingFundRow = {
   interestRate: string
 }
 
+export type NetworthEntry = {
+  id: string
+  name: string
+}
+
+export type NetworthData = {
+  assets: NetworthEntry[]
+  liabilities: NetworthEntry[]
+  months: Record<string, Record<string, string>> // "YYYY-MM" -> { entryId -> amount }
+}
+
 export type AppData = {
   version: 1
   storageMode: StorageMode
@@ -53,4 +64,5 @@ export type AppData = {
   }
   emergencyFund: EmergencyFundData
   sinkingFunds: SinkingFundRow[]
+  networth: NetworthData
 }
