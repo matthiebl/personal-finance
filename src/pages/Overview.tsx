@@ -594,10 +594,7 @@ export default function Overview() {
     return MONTH_KEYS.map((key, i) => {
       const actuals = monthlyActuals[key]
       const income = [...catSets.incomeIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
-      const outgoing = [...catSets.expenseIds, ...catSets.savingsIds].reduce(
-        (s, id) => s + (actuals[id] ?? 0),
-        0
-      )
+      const outgoing = [...catSets.expenseIds].reduce((s, id) => s + (actuals[id] ?? 0), 0)
       return { month: MONTH_ABBR[i], income, outgoing }
     })
   }, [monthlyActuals, catSets])
