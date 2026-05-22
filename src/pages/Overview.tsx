@@ -9,10 +9,12 @@ import {
   YAxis,
 } from 'recharts'
 import { useSearchParams } from 'react-router-dom'
-import { DonutChart, ExpandableChart, IncomeVsOutgoingChart, MonthlyTrendChart } from '../components/charts'
-import type { DonutSegment, IncomeOutgoingDatum, TrendDatum } from '../components/charts'
+import { DonutChart, ExpandableChart, IncomeVsOutgoingChart, MonthlyStackedChart, MonthlyTrendChart } from '../components/charts'
+import type { DonutSegment, IncomeOutgoingDatum, StackedDatum, TrendDatum } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { PageHeader, SectionHeading } from '../components/layout'
+import { AnnualBreakdownTable } from '../components/table'
+import type { AnnualSectionConfig, AnnualSummaryRow, AnnualTableRow } from '../components/table'
 import { useAppData } from '../context/AppDataContext'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, BudgetYear, Transaction } from '../lib/types'
@@ -24,16 +26,6 @@ const MONTH_KEYS = MONTH_ABBR.map((_, i) => String(i + 1).padStart(2, '0'))
 const PALETTE = ['#6366f1', '#8b5cf6', '#f97316', '#10b981', '#14b8a6', '#f43f5e', '#ec4899', '#06b6d4', '#22c55e', '#94a3b8']
 
 // ─── Types ────────────────────────────────────────────────────────────────────
-
-type AnnualTableRow = {
-  categoryId: string
-  label: string
-  monthlyTotals: number[]
-  annualTotal: number
-  section: BudgetCategory['section']
-}
-
-type StackedDatum = { month: string; needs: number; wants: number; debt: number; savings: number }
 
 type DeepDiveCategory = {
   categoryId: string
@@ -62,132 +54,6 @@ function YearSelector({ year, onChange }: { year: string; onChange: (delta: numb
         ›
       </button>
     </div>
-  )
-}
-
-// ─── MonthlyStackedChart ──────────────────────────────────────────────────────
-
-type StackedTooltipPayload = { name: string; value: number; fill: string }
-
-function StackedTooltip({
-  active,
-  payload,
-  label,
-}: {
-  active?: boolean
-  payload?: StackedTooltipPayload[]
-  label?: string
-}) {
-  if (!active || !payload?.length) return null
-  const nonZero = payload.filter((p) => p.value > 0)
-  const total = nonZero.reduce((s, p) => s + p.value, 0)
-  return (
-    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
-      <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
-      {nonZero.map((p) => (
-        <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
-          <div className="flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
-            <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
-          </div>
-          <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
-        </div>
-      ))}
-      {nonZero.length > 1 && (
-        <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
-          <span className="font-medium text-gray-700 dark:text-gray-200">Total</span>
-          <span className="font-medium tabular-nums text-gray-700 dark:text-gray-200">{fmt(total)}</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-function MonthlyStackedChart({ data, height = 260 }: { data: StackedDatum[]; height?: number }) {
-  const hasData = data.some((d) => d.needs > 0 || d.wants > 0 || d.debt > 0 || d.savings > 0)
-  if (!hasData) {
-    return (
-      <div className="flex items-center justify-center" style={{ height }}>
-        <p className="text-xs text-gray-400 dark:text-gray-600">Add transactions to see breakdown</p>
-      </div>
-    )
-  }
-  return (
-    <ResponsiveContainer width="100%" height={height}>
-      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="25%">
-        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
-        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-        <YAxis tickFormatter={fmtAxis} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={48} />
-        <Tooltip content={<StackedTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
-        <Bar dataKey="needs" stackId="a" fill="#6366f1" name="Needs" />
-        <Bar dataKey="wants" stackId="a" fill="#8b5cf6" name="Wants" />
-        <Bar dataKey="debt" stackId="a" fill="#f97316" name="Debt" />
-        <Bar dataKey="savings" stackId="a" fill="#10b981" name="Savings" radius={[3, 3, 0, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
-  )
-}
-
-// ─── AnnualTableSection ───────────────────────────────────────────────────────
-
-function AnnualTableSection({
-  title,
-  rows,
-  onRowClick,
-  accentClass,
-}: {
-  title: string
-  rows: AnnualTableRow[]
-  onRowClick: (categoryId: string) => void
-  accentClass: string
-}) {
-  const [open, setOpen] = useState(true)
-  const sectionTotals = MONTH_ABBR.map((_, i) => rows.reduce((s, r) => s + r.monthlyTotals[i], 0))
-  const sectionAnnual = rows.reduce((s, r) => s + r.annualTotal, 0)
-
-  return (
-    <>
-      <tr
-        onClick={() => setOpen((o) => !o)}
-        className="cursor-pointer bg-gray-50 dark:bg-gray-900/60 border-b border-gray-200 dark:border-gray-800"
-      >
-        <td className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900/60 py-2 pr-4 pl-3">
-          <span className="text-xs mr-1.5 text-gray-400">{open ? '▾' : '▸'}</span>
-          <span className="text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            {title}
-          </span>
-        </td>
-        {sectionTotals.map((v, i) => (
-          <td key={i} className="py-2 px-3 text-right tabular-nums text-xs font-medium text-gray-500 dark:text-gray-400">
-            {v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>}
-          </td>
-        ))}
-        <td className={`py-2 pl-3 pr-4 text-right tabular-nums text-xs font-semibold ${accentClass}`}>
-          {sectionAnnual > 0 ? fmt(sectionAnnual) : <span className="text-gray-300 dark:text-gray-700">—</span>}
-        </td>
-      </tr>
-      {open &&
-        rows.map((row) => (
-          <tr
-            key={row.categoryId}
-            onClick={() => onRowClick(row.categoryId)}
-            className="cursor-pointer border-b border-gray-100 dark:border-gray-800/60 even:bg-gray-50/50 dark:even:bg-gray-900/30 hover:bg-indigo-50/40 dark:hover:bg-indigo-900/10 transition-colors"
-          >
-            <td className="sticky left-0 z-10 bg-white dark:bg-gray-950 even-row:bg-gray-50/50 py-2 pr-4 pl-6 text-gray-700 dark:text-gray-300 text-sm">
-              {row.label}
-              <span className="ml-1.5 text-[10px] text-gray-300 dark:text-gray-700 group-hover:text-indigo-300">↗</span>
-            </td>
-            {row.monthlyTotals.map((v, i) => (
-              <td key={i} className="py-2 px-3 text-right tabular-nums text-sm text-gray-600 dark:text-gray-400">
-                {v > 0 ? fmtCents(v) : <span className="text-gray-300 dark:text-gray-700">—</span>}
-              </td>
-            ))}
-            <td className="py-2 pl-3 pr-4 text-right tabular-nums text-sm font-medium text-gray-700 dark:text-gray-200">
-              {row.annualTotal > 0 ? fmtCents(row.annualTotal) : <span className="text-gray-300 dark:text-gray-700">—</span>}
-            </td>
-          </tr>
-        ))}
-    </>
   )
 }
 
@@ -627,7 +493,6 @@ export default function Overview() {
       label: c.label,
       monthlyTotals: MONTH_KEYS.map((key) => monthlyActuals[key][c.id] ?? 0),
       annualTotal: annualCategoryTotals[c.id] ?? 0,
-      section: c.section,
     }))
   }
 
@@ -782,105 +647,57 @@ export default function Overview() {
             — click any row to deep dive
           </span>
         </p>
-        <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950">
-          <table className="w-full text-sm border-collapse" style={{ minWidth: 960 }}>
-            <thead>
-              <tr className="border-b border-gray-200 dark:border-gray-800">
-                <th className="sticky left-0 z-10 bg-white dark:bg-gray-950 text-left py-2.5 pr-4 pl-4 font-medium text-gray-500 dark:text-gray-400 w-40">
-                  Category
-                </th>
-                {MONTH_ABBR.map((m) => (
-                  <th key={m} className="text-right py-2.5 px-3 font-medium text-gray-500 dark:text-gray-400 min-w-18">
-                    {m}
-                  </th>
-                ))}
-                <th className="text-right py-2.5 pl-3 pr-4 font-semibold text-gray-700 dark:text-gray-300 min-w-21">
-                  Total
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <AnnualTableSection
-                title="Income"
-                rows={incomeRows}
-                onRowClick={handleRowClick}
-                accentClass="text-green-600 dark:text-green-400"
-              />
-              <AnnualTableSection
-                title="Fixed Expenses"
-                rows={fixedRows}
-                onRowClick={handleRowClick}
-                accentClass="text-gray-600 dark:text-gray-300"
-              />
-              <AnnualTableSection
-                title="Variable Expenses"
-                rows={varRows}
-                onRowClick={handleRowClick}
-                accentClass="text-gray-600 dark:text-gray-300"
-              />
-              <AnnualTableSection
-                title="Savings & Investments"
-                rows={savingsRows}
-                onRowClick={handleRowClick}
-                accentClass="text-indigo-600 dark:text-indigo-400"
-              />
-
-              {/* Summary: Total Expenses */}
-              <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold">
-                <td className="sticky left-0 z-10 bg-gray-100 dark:bg-gray-800/50 py-2.5 pr-4 pl-4 text-gray-700 dark:text-gray-200 text-sm">
-                  Total Expenses
-                </td>
-                {annualMonthlyExpenses.map((v, i) => (
-                  <td key={i} className="py-2.5 px-3 text-right tabular-nums text-sm text-gray-600 dark:text-gray-300">
-                    {v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>}
-                  </td>
-                ))}
-                <td className="py-2.5 pl-3 pr-4 text-right tabular-nums text-sm text-gray-700 dark:text-gray-200">
-                  {annualExpenses > 0 ? fmt(annualExpenses) : '—'}
-                </td>
-              </tr>
-
-              {/* Summary: Net Savings */}
-              <tr className="bg-gray-100 dark:bg-gray-800/50 font-semibold border-b border-gray-200 dark:border-gray-700">
-                <td className="sticky left-0 z-10 bg-gray-100 dark:bg-gray-800/50 py-2.5 pr-4 pl-4 text-gray-700 dark:text-gray-200 text-sm">
-                  Total Savings
-                </td>
-                {annualMonthlySavings.map((v, i) => (
-                  <td key={i} className="py-2.5 px-3 text-right tabular-nums text-sm text-indigo-600 dark:text-indigo-400">
-                    {v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>}
-                  </td>
-                ))}
-                <td className="py-2.5 pl-3 pr-4 text-right tabular-nums text-sm text-indigo-600 dark:text-indigo-400">
-                  {annualSavings > 0 ? fmt(annualSavings) : '—'}
-                </td>
-              </tr>
-
-              {/* Summary: Savings Rate */}
-              <tr className="bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700">
-                <td className="sticky left-0 z-10 bg-gray-50 dark:bg-gray-900/40 py-2.5 pr-4 pl-4 text-gray-500 dark:text-gray-400 text-xs font-medium">
-                  Savings Rate
-                </td>
-                {MONTH_KEYS.map((_, i) => {
-                  const inc = annualMonthlyIncome[i]
-                  const sav = annualMonthlySavings[i]
-                  const rate = inc > 0 ? (sav / inc) * 100 : null
-                  return (
-                    <td key={i} className="py-2.5 px-3 text-right tabular-nums text-xs text-gray-400 dark:text-gray-500">
-                      {rate !== null ? `${rate.toFixed(0)}%` : <span className="text-gray-300 dark:text-gray-700">—</span>}
-                    </td>
-                  )
-                })}
-                <td
-                  className={`py-2.5 pl-3 pr-4 text-right tabular-nums text-xs font-medium ${
-                    savingsRate >= 20 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'
-                  }`}
-                >
-                  {annualIncome > 0 ? `${savingsRate.toFixed(1)}%` : '—'}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <AnnualBreakdownTable
+          monthHeaders={MONTH_ABBR}
+          sections={[
+            { title: 'Income', rows: incomeRows, accentClass: 'text-green-600 dark:text-green-400' },
+            { title: 'Fixed Expenses', rows: fixedRows, accentClass: 'text-gray-600 dark:text-gray-300' },
+            { title: 'Variable Expenses', rows: varRows, accentClass: 'text-gray-600 dark:text-gray-300' },
+            { title: 'Savings & Investments', rows: savingsRows, accentClass: 'text-indigo-600 dark:text-indigo-400' },
+          ] satisfies AnnualSectionConfig[]}
+          summaryRows={[
+            {
+              label: 'Total Expenses',
+              rowClass: 'border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold',
+              stickyClass: 'bg-gray-100 dark:bg-gray-800/50',
+              labelClass: 'text-gray-700 dark:text-gray-200',
+              monthClass: 'text-gray-600 dark:text-gray-300',
+              months: annualMonthlyExpenses.map((v) =>
+                v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>
+              ),
+              total: annualExpenses > 0 ? fmt(annualExpenses) : '—',
+              totalClass: 'text-gray-700 dark:text-gray-200',
+            },
+            {
+              label: 'Total Savings',
+              rowClass: 'bg-gray-100 dark:bg-gray-800/50 font-semibold border-b border-gray-200 dark:border-gray-700',
+              stickyClass: 'bg-gray-100 dark:bg-gray-800/50',
+              labelClass: 'text-gray-700 dark:text-gray-200',
+              monthClass: 'text-indigo-600 dark:text-indigo-400',
+              months: annualMonthlySavings.map((v) =>
+                v > 0 ? fmt(v) : <span className="text-gray-300 dark:text-gray-700">—</span>
+              ),
+              total: annualSavings > 0 ? fmt(annualSavings) : '—',
+              totalClass: 'text-indigo-600 dark:text-indigo-400',
+            },
+            {
+              label: 'Savings Rate',
+              rowClass: 'bg-gray-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700',
+              stickyClass: 'bg-gray-50 dark:bg-gray-900/40',
+              labelClass: 'text-gray-500 dark:text-gray-400 text-xs font-medium',
+              monthClass: 'text-xs text-gray-400 dark:text-gray-500',
+              months: MONTH_KEYS.map((_, i) => {
+                const inc = annualMonthlyIncome[i]
+                const sav = annualMonthlySavings[i]
+                const rate = inc > 0 ? (sav / inc) * 100 : null
+                return rate !== null ? `${rate.toFixed(0)}%` : <span className="text-gray-300 dark:text-gray-700">—</span>
+              }),
+              total: annualIncome > 0 ? `${savingsRate.toFixed(1)}%` : '—',
+              totalClass: `text-xs font-medium ${savingsRate >= 20 ? 'text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}`,
+            },
+          ] satisfies AnnualSummaryRow[]}
+          onRowClick={handleRowClick}
+        />
       </div>
 
       {/* Deep dive overlay */}

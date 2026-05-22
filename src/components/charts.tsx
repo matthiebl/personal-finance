@@ -607,6 +607,71 @@ export function IncomeVsOutgoingChart({
   )
 }
 
+// ─── Monthly Stacked Spending Chart ──────────────────────────────────────────
+
+export type StackedDatum = { month: string; needs: number; wants: number; debt: number; savings: number }
+
+type StackedTooltipPayload = { name: string; value: number; fill: string }
+
+function StackedTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: StackedTooltipPayload[]
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  const nonZero = payload.filter((p) => p.value > 0)
+  const total = nonZero.reduce((s, p) => s + p.value, 0)
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
+      <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
+      {nonZero.map((p) => (
+        <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.fill }} />
+            <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
+          </div>
+          <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
+        </div>
+      ))}
+      {nonZero.length > 1 && (
+        <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
+          <span className="font-medium text-gray-700 dark:text-gray-200">Total</span>
+          <span className="font-medium tabular-nums text-gray-700 dark:text-gray-200">{fmt(total)}</span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function MonthlyStackedChart({ data, height = 260 }: { data: StackedDatum[]; height?: number }) {
+  const hasData = data.some((d) => d.needs > 0 || d.wants > 0 || d.debt > 0 || d.savings > 0)
+  if (!hasData) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <p className="text-xs text-gray-400 dark:text-gray-600">Add transactions to see breakdown</p>
+      </div>
+    )
+  }
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }} barCategoryGap="25%">
+        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+        <YAxis tickFormatter={fmtAxis} tick={{ fontSize: 10, fill: '#9ca3af' }} axisLine={false} tickLine={false} width={48} />
+        <Tooltip content={<StackedTooltip />} cursor={{ fill: 'rgba(0,0,0,0.04)' }} />
+        <Bar dataKey="needs" stackId="a" fill="#6366f1" name="Needs" />
+        <Bar dataKey="wants" stackId="a" fill="#8b5cf6" name="Wants" />
+        <Bar dataKey="debt" stackId="a" fill="#f97316" name="Debt" />
+        <Bar dataKey="savings" stackId="a" fill="#10b981" name="Savings" radius={[3, 3, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  )
+}
+
 // ─── Expandable Chart ────────────────────────────────────────────────────────
 
 export function ExpandableChart({
