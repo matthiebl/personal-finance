@@ -8,10 +8,7 @@ export default function Welcome() {
 
   return (
     <div className="max-w-3xl">
-      <PageHeader
-        title="Welcome"
-        subtitle="Set up your basic profile to personalise the app."
-      />
+      <PageHeader title="Welcome" subtitle="Set up your basic profile to personalise the app." />
 
       <div className="grid grid-cols-2 gap-8">
         <div>
@@ -70,7 +67,11 @@ export default function Welcome() {
 
       <div className="mt-10 grid grid-cols-3 gap-4">
         {[
-          { label: 'Annual Overview', desc: 'Month-by-month income & expense grid', to: '/overview' },
+          {
+            label: 'Annual Overview',
+            desc: 'Month-by-month income & expense grid',
+            to: '/overview',
+          },
           { label: 'Net Worth', desc: 'Track assets and liabilities over time', to: '/networth' },
           { label: 'Debt Snowball', desc: 'Plan your debt payoff strategy', to: '/debt-snowball' },
         ].map((card) => (

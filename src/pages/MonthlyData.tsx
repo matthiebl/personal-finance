@@ -6,7 +6,7 @@ import { HeroStats } from '../components/hero'
 import type { TxSuggestion } from '../components/inputs'
 import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
 import { MonthSelector, PageHeader, SectionHeading, YearSelector } from '../components/layout'
-import { useAppData } from '../context/AppDataContext'
+import { useAppData } from '../context/useAppData'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, ExpenseType, Transaction } from '../lib/types'
 

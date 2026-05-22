@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
 import { AppDataProvider } from './context/AppDataContext'
+import { AuthProvider } from './context/AuthContext'
 import Calculators from './pages/Calculators'
 import DebtSnowball from './pages/DebtSnowball'
 import EmergencyFund from './pages/EmergencyFund'
@@ -29,9 +29,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Monthly',
-    links: [
-      { to: '/monthly', label: 'Monthly Budget' },
-    ],
+    links: [{ to: '/monthly', label: 'Monthly Budget' }],
   },
   {
     label: 'Planning',
@@ -69,12 +67,7 @@ function Sidebar({
   return (
     <>
       {/* Mobile backdrop */}
-      {open && (
-        <div
-          className="fixed inset-0 z-40 bg-black/30 lg:hidden"
-          onClick={onClose}
-        />
-      )}
+      {open && <div className="fixed inset-0 z-40 bg-black/30 lg:hidden" onClick={onClose} />}
 
       <aside
         className={`fixed inset-y-0 left-0 z-50 w-60 flex flex-col border-r border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 transition-transform duration-200
@@ -159,46 +152,46 @@ function App() {
   return (
     <BrowserRouter>
       <AuthProvider>
-      <AppDataProvider>
-        <div className="min-h-screen flex flex-col lg:flex-row bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
-          {/* Mobile top bar */}
-          <header className="flex items-center h-14 px-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 lg:hidden">
-            <button
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open navigation"
-              className="w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            >
-              <span className="block w-5 h-0.5 bg-current rounded" />
-              <span className="block w-5 h-0.5 bg-current rounded" />
-              <span className="block w-5 h-0.5 bg-current rounded" />
-            </button>
-            <span className="ml-3 font-semibold text-base tracking-tight">Personal Finance</span>
-          </header>
+        <AppDataProvider>
+          <div className="min-h-screen flex flex-col lg:flex-row bg-gray-50 dark:bg-gray-950 text-gray-900 dark:text-gray-100 transition-colors">
+            {/* Mobile top bar */}
+            <header className="flex items-center h-14 px-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0 lg:hidden">
+              <button
+                onClick={() => setSidebarOpen(true)}
+                aria-label="Open navigation"
+                className="w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-md text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                <span className="block w-5 h-0.5 bg-current rounded" />
+                <span className="block w-5 h-0.5 bg-current rounded" />
+                <span className="block w-5 h-0.5 bg-current rounded" />
+              </button>
+              <span className="ml-3 font-semibold text-base tracking-tight">Personal Finance</span>
+            </header>
 
-          <Sidebar
-            dark={dark}
-            onToggleDark={() => setDark((d) => !d)}
-            open={sidebarOpen}
-            onClose={() => setSidebarOpen(false)}
-          />
-          <main className="flex-1 min-h-screen overflow-y-auto px-4 py-4 md:px-8 md:py-8">
-            <Routes>
-              <Route path="/" element={<Welcome />} />
-              <Route path="/overview" element={<Overview />} />
-              <Route path="/networth" element={<NetWorth />} />
-              <Route path="/monthly" element={<MonthlyData />} />
-              <Route path="/emergency-fund" element={<EmergencyFund />} />
-              <Route path="/sinking-funds" element={<SinkingFunds />} />
-              <Route path="/debt-snowball" element={<DebtSnowball />} />
-              <Route path="/home" element={<HomeAffordability />} />
-              <Route path="/calculators" element={<Calculators />} />
-              <Route path="/investments" element={<Investments />} />
-              <Route path="/settings" element={<Settings />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </main>
-        </div>
-      </AppDataProvider>
+            <Sidebar
+              dark={dark}
+              onToggleDark={() => setDark((d) => !d)}
+              open={sidebarOpen}
+              onClose={() => setSidebarOpen(false)}
+            />
+            <main className="flex-1 min-h-screen overflow-y-auto px-4 py-4 md:px-8 md:py-8">
+              <Routes>
+                <Route path="/" element={<Welcome />} />
+                <Route path="/overview" element={<Overview />} />
+                <Route path="/networth" element={<NetWorth />} />
+                <Route path="/monthly" element={<MonthlyData />} />
+                <Route path="/emergency-fund" element={<EmergencyFund />} />
+                <Route path="/sinking-funds" element={<SinkingFunds />} />
+                <Route path="/debt-snowball" element={<DebtSnowball />} />
+                <Route path="/home" element={<HomeAffordability />} />
+                <Route path="/calculators" element={<Calculators />} />
+                <Route path="/investments" element={<Investments />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </main>
+          </div>
+        </AppDataProvider>
       </AuthProvider>
     </BrowserRouter>
   )

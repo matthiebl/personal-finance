@@ -25,7 +25,11 @@ export default function HomeAffordability() {
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
                   Annual gross income
                 </label>
-                <CurrencyInput value={annualIncome} onChange={setAnnualIncome} placeholder="100,000" />
+                <CurrencyInput
+                  value={annualIncome}
+                  onChange={setAnnualIncome}
+                  placeholder="100,000"
+                />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1.5">
@@ -45,7 +49,11 @@ export default function HomeAffordability() {
                 </label>
                 <div className="flex gap-2">
                   <div className="flex-1">
-                    <CurrencyInput value={downPaymentAmt} onChange={setDownPaymentAmt} placeholder="50,000" />
+                    <CurrencyInput
+                      value={downPaymentAmt}
+                      onChange={setDownPaymentAmt}
+                      placeholder="50,000"
+                    />
                   </div>
                   <div className="w-24">
                     <SuffixInput

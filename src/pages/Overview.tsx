@@ -8,17 +8,12 @@ import {
   MonthlyTrendChart,
 } from '../components/charts'
 import { HeroStats } from '../components/hero'
-import type { MonthSlot } from '../components/layout'
-import {
-  PageHeader,
-  SectionHeading,
-  ViewToggle,
-  YearSelector,
-  useAnnualPicker,
-} from '../components/layout'
+import { PageHeader, SectionHeading, ViewToggle, YearSelector } from '../components/layout'
 import type { AnnualSectionConfig, AnnualSummaryRow, AnnualTableRow } from '../components/table'
 import { AnnualBreakdownTable } from '../components/table'
-import { useAppData } from '../context/AppDataContext'
+import { useAppData } from '../context/useAppData'
+import type { MonthSlot } from '../lib/annualPicker'
+import { useAnnualPicker } from '../lib/annualPicker'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, BudgetYear, Transaction } from '../lib/types'
 

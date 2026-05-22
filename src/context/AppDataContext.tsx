@@ -1,6 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState } from 'react'
-import { AccountStorageAdapter, DEFAULT_APP_DATA, StorageFullError, localStorageAdapter } from '../lib/storage'
+import { useEffect, useRef, useState } from 'react'
 import type { StorageAdapter } from '../lib/storage'
+import {
+  AccountStorageAdapter,
+  DEFAULT_APP_DATA,
+  StorageFullError,
+  localStorageAdapter,
+} from '../lib/storage'
 import type {
   AppData,
   BudgetCategory,
@@ -12,53 +17,9 @@ import type {
   StorageMode,
   Transaction,
 } from '../lib/types'
-import { useAuth } from './AuthContext'
-
-type AppDataContextValue = {
-  data: AppData
-  loaded: boolean
-
-  // Categories (shared templates)
-  addCategory: (section: BudgetCategory['section'], defaultExpenseType?: ExpenseType) => void
-  updateCategory: (id: string, patch: Partial<Omit<BudgetCategory, 'id'>>) => void
-  removeCategory: (id: string) => void
-  reorderCategories: (orderedIds: string[]) => void
-
-  // Monthly budget (scoped to year + zero-padded month)
-  getBudgetMonth: (year: string, month: string) => BudgetMonth
-  updateBudgeted: (year: string, month: string, categoryId: string, amount: string) => void
-  addTransaction: (year: string, month: string) => void
-  updateTransaction: (year: string, month: string, id: string, patch: Partial<Transaction>) => void
-  removeTransaction: (year: string, month: string, id: string) => void
-  condenseTransactions: (year: string, month: string) => void
-
-  // Emergency fund
-  setEmergencyFund: (patch: Partial<EmergencyFundData>) => void
-
-  // Sinking funds
-  addSinkingFund: () => void
-  updateSinkingFund: (id: string, patch: Partial<Omit<SinkingFundRow, 'id'>>) => void
-  removeSinkingFund: (id: string) => void
-
-  // Net worth
-  addNetworthEntry: (type: 'asset' | 'liability') => void
-  updateNetworthEntry: (
-    type: 'asset' | 'liability',
-    id: string,
-    patch: Partial<Omit<NetworthEntry, 'id'>>,
-  ) => void
-  removeNetworthEntry: (type: 'asset' | 'liability', id: string) => void
-  setNetworthValue: (yearMonth: string, entryId: string, amount: string) => void
-
-  // Settings
-  setStorageMode: (mode: StorageMode) => void
-  migrateToAccount: (strategy: 'upload' | 'download') => Promise<void>
-  hasCloudData: () => Promise<boolean>
-  storageUsage: { usedBytes: number; totalBytes: number | null }
-  storageError: string | null
-}
-
-const AppDataContext = createContext<AppDataContextValue | null>(null)
+import type { AppDataContextValue } from './AppDataContextDef'
+import { AppDataContext } from './AppDataContextDef'
+import { useAuth } from './useAuth'
 
 function emptyBudgetMonth(): BudgetMonth {
   return { budgeted: {}, transactions: [] }
@@ -118,8 +79,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authLoaded || !loaded) return
 
-    const desiredKey =
-      data.storageMode === 'account' && family ? `account:${family.id}` : 'local'
+    const desiredKey = data.storageMode === 'account' && family ? `account:${family.id}` : 'local'
 
     if (desiredKey === adapterKeyRef.current) return
     adapterKeyRef.current = desiredKey
@@ -136,7 +96,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       adapterRef.current = localStorageAdapter
       localStorageAdapter.estimateUsage().then(setStorageUsage)
     }
-  }, [authLoaded, loaded, family, data.storageMode]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [authLoaded, loaded, family, data.storageMode])
 
   // Debounced save whenever data changes (after initial load)
   useEffect(() => {
@@ -342,7 +302,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   function updateNetworthEntry(
     type: 'asset' | 'liability',
     id: string,
-    patch: Partial<Omit<NetworthEntry, 'id'>>,
+    patch: Partial<Omit<NetworthEntry, 'id'>>
   ) {
     const key = type === 'asset' ? 'assets' : 'liabilities'
     setData((prev) => ({
@@ -359,7 +319,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => {
       const cleanedMonths: Record<string, Record<string, string>> = {}
       for (const [ym, entries] of Object.entries(prev.networth.months)) {
-        const { [id]: _removed, ...rest } = entries
+        const rest = Object.fromEntries(Object.entries(entries).filter(([k]) => k !== id))
         if (Object.keys(rest).length > 0) cleanedMonths[ym] = rest
       }
       return {
@@ -455,11 +415,4 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
   }
 
   return <AppDataContext.Provider value={value}>{children}</AppDataContext.Provider>
-}
-
-// eslint-disable-next-line react-refresh/only-export-components
-export function useAppData(): AppDataContextValue {
-  const ctx = useContext(AppDataContext)
-  if (!ctx) throw new Error('useAppData must be used within AppDataProvider')
-  return ctx
 }

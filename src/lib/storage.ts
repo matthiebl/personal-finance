@@ -155,10 +155,12 @@ export class AccountStorageAdapter implements StorageAdapter {
   }
 
   async save(appData: AppData): Promise<void> {
-    const { error } = await supabase.from('family_data').upsert(
-      { family_id: this.familyId, data: appData, updated_at: new Date().toISOString() },
-      { onConflict: 'family_id' },
-    )
+    const { error } = await supabase
+      .from('family_data')
+      .upsert(
+        { family_id: this.familyId, data: appData, updated_at: new Date().toISOString() },
+        { onConflict: 'family_id' }
+      )
     if (error) throw new Error(error.message)
   }
 

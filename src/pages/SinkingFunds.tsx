@@ -3,7 +3,7 @@ import { DonutChart, FundsBarChart, GrowthBarChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, SuffixInput, TextInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
-import { useAppData } from '../context/AppDataContext'
+import { useAppData } from '../context/useAppData'
 import { calcMonthsToGoal, fmt } from '../lib/finance'
 import type { SinkingFundRow } from '../lib/types'
 

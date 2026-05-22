@@ -31,7 +31,11 @@ export default function DebtSnowball() {
         stats={[
           { label: 'Total Debt', value: '$—', colorClass: 'text-red-500 dark:text-red-400' },
           { label: 'Total Min. Payments', value: '$—' },
-          { label: 'Extra Payment Budget', value: '$—', colorClass: 'text-green-600 dark:text-green-400' },
+          {
+            label: 'Extra Payment Budget',
+            value: '$—',
+            colorClass: 'text-green-600 dark:text-green-400',
+          },
           { label: 'Est. Debt-Free', value: '—' },
         ]}
       />
@@ -105,9 +109,7 @@ export default function DebtSnowball() {
           <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold">
             <td />
             <td className="py-2 pr-4 text-gray-700 dark:text-gray-200">Totals</td>
-            <td className="py-2 px-3 text-right tabular-nums text-red-500 dark:text-red-400">
-              $—
-            </td>
+            <td className="py-2 px-3 text-right tabular-nums text-red-500 dark:text-red-400">$—</td>
             <td className="py-2 px-3 text-right tabular-nums text-gray-700 dark:text-gray-200">
               $—
             </td>

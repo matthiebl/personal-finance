@@ -1,38 +1,16 @@
 import type { User } from '@supabase/supabase-js'
-import { createContext, useContext, useEffect, useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { useEffect, useState } from 'react'
 import type { DbFamily, DbUserProfile } from '../lib/supabase'
-
-type AuthContextValue = {
-  user: User | null
-  profile: DbUserProfile | null
-  family: DbFamily | null
-  authLoaded: boolean
-  sendMagicLink: (email: string) => Promise<void>
-  signOut: () => Promise<void>
-  createFamily: (name: string) => Promise<void>
-  joinFamily: (inviteCode: string) => Promise<string | null>
-  leaveFamily: () => Promise<void>
-  refreshFamily: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
+import { supabase } from '../lib/supabase'
+import { AuthContext } from './AuthContextDef'
 
 async function fetchProfile(userId: string): Promise<DbUserProfile | null> {
-  const { data } = await supabase
-    .from('user_profiles')
-    .select('*')
-    .eq('id', userId)
-    .maybeSingle()
+  const { data } = await supabase.from('user_profiles').select('*').eq('id', userId).maybeSingle()
   return data
 }
 
 async function fetchFamily(familyId: string): Promise<DbFamily | null> {
-  const { data } = await supabase
-    .from('families')
-    .select('*')
-    .eq('id', familyId)
-    .maybeSingle()
+  const { data } = await supabase.from('families').select('*').eq('id', familyId).maybeSingle()
   return data
 }
 
@@ -75,7 +53,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null
       setUser(u)
       if (u) {
@@ -87,7 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })
 
     return () => subscription.unsubscribe()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [])
 
   async function sendMagicLink(email: string) {
     const { error } = await supabase.auth.signInWithOtp({
@@ -117,12 +97,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (profErr) throw new Error(profErr.message)
 
     setFamily(fam)
-    setProfile((p) => p ? { ...p, family_id: fam.id } : p)
+    setProfile((p) => (p ? { ...p, family_id: fam.id } : p))
   }
 
   async function joinFamily(inviteCode: string): Promise<string | null> {
     if (!user) throw new Error('Not signed in')
-    const { data: familyId, error: rpcErr } = await supabase.rpc('join_family_by_code', { code: inviteCode })
+    const { data: familyId, error: rpcErr } = await supabase.rpc('join_family_by_code', {
+      code: inviteCode,
+    })
     if (rpcErr) return rpcErr.message
     if (!familyId) return 'No family found with that invite code.'
 
@@ -130,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!fam) return 'Failed to load family details.'
 
     setFamily(fam)
-    setProfile((p) => p ? { ...p, family_id: fam.id } : p)
+    setProfile((p) => (p ? { ...p, family_id: fam.id } : p))
     return null
   }
 
@@ -145,7 +127,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (error) throw new Error(error.message)
 
     setFamily(null)
-    setProfile((p) => p ? { ...p, family_id: null } : p)
+    setProfile((p) => (p ? { ...p, family_id: null } : p))
   }
 
   async function refreshFamily() {
@@ -172,10 +154,4 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth(): AuthContextValue {
-  const ctx = useContext(AuthContext)
-  if (!ctx) throw new Error('useAuth must be used inside AuthProvider')
-  return ctx
 }

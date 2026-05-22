@@ -761,27 +761,6 @@ export function ExpandableChart({
 
 // ─── Networth Stacked Chart ───────────────────────────────────────────────────
 
-export const NETWORTH_ASSET_COLORS = [
-  '#10b981', // emerald-500
-  '#3b82f6', // blue-500
-  '#84cc16', // lime-500
-  '#0891b2', // cyan-600
-  '#34d399', // emerald-400
-  '#60a5fa', // blue-400
-  '#a3e635', // lime-400
-  '#22d3ee', // cyan-400
-]
-export const NETWORTH_LIABILITY_COLORS = [
-  '#ef4444', // red-500
-  '#f97316', // orange-500
-  '#db2777', // pink-600
-  '#b91c1c', // red-700
-  '#fb923c', // orange-400
-  '#ec4899', // pink-500
-  '#dc2626', // red-600
-  '#ea580c', // orange-600
-]
-
 export type NetworthSeriesEntry = { id: string; label: string; color: string }
 export type NetworthDatum = { month: string; networth: number; [key: string]: number | string }
 
@@ -895,7 +874,7 @@ export function NetworthStackedChart({
   height?: number
 }) {
   const hasData = data.some(
-    (d) => d.networth !== 0 || assetSeries.some((s) => (d[s.id] as number) !== 0),
+    (d) => d.networth !== 0 || assetSeries.some((s) => (d[s.id] as number) !== 0)
   )
   if (!hasData) {
     return (
@@ -925,9 +904,7 @@ export function NetworthStackedChart({
         />
         <ReferenceLine y={0} stroke="#e5e7eb" strokeWidth={1} />
         <Tooltip
-          content={
-            <NetworthTooltip assetSeries={assetSeries} liabilitySeries={liabilitySeries} />
-          }
+          content={<NetworthTooltip assetSeries={assetSeries} liabilitySeries={liabilitySeries} />}
           cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
         />
         {assetSeries.map((s) => (

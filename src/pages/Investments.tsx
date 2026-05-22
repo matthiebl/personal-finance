@@ -60,7 +60,9 @@ export default function Investments() {
               </label>
               <select className="border border-gray-300 dark:border-gray-700 rounded-md px-3 py-1.5 text-sm bg-white dark:bg-gray-900 w-full focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600">
                 {[5, 10, 15, 20, 25, 30].map((y) => (
-                  <option key={y} defaultValue={30}>{y} years</option>
+                  <option key={y} defaultValue={30}>
+                    {y} years
+                  </option>
                 ))}
               </select>
             </div>

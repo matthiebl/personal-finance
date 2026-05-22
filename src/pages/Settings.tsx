@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { PageHeader, SectionHeading } from '../components/layout'
-import { useAuth } from '../context/AuthContext'
-import { useAppData } from '../context/AppDataContext'
+import { useAppData } from '../context/useAppData'
+import { useAuth } from '../context/useAuth'
 import type { BudgetCategory } from '../lib/types'
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -70,7 +70,12 @@ type MigrationConflictModalProps = {
   busy: boolean
 }
 
-function MigrationConflictModal({ onUpload, onDownload, onCancel, busy }: MigrationConflictModalProps) {
+function MigrationConflictModal({
+  onUpload,
+  onDownload,
+  onCancel,
+  busy,
+}: MigrationConflictModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
@@ -92,7 +97,9 @@ function MigrationConflictModal({ onUpload, onDownload, onCancel, busy }: Migrat
             disabled={busy}
             className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 hover:border-indigo-300 dark:hover:border-indigo-700 transition-colors disabled:opacity-50"
           >
-            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">Upload local data</p>
+            <p className="text-sm font-medium text-gray-800 dark:text-gray-200">
+              Upload local data
+            </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
               Replace cloud data with what's on this device.
             </p>
@@ -121,7 +128,18 @@ function MigrationConflictModal({ onUpload, onDownload, onCancel, busy }: Migrat
 }
 
 function AccountTab() {
-  const { user, family, profile, authLoaded, sendMagicLink, signOut, createFamily, joinFamily, leaveFamily, refreshFamily } = useAuth()
+  const {
+    user,
+    family,
+    profile,
+    authLoaded,
+    sendMagicLink,
+    signOut,
+    createFamily,
+    joinFamily,
+    leaveFamily,
+    refreshFamily,
+  } = useAuth()
   const { data, setStorageMode, migrateToAccount, hasCloudData, storageUsage } = useAppData()
 
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -257,10 +275,15 @@ function AccountTab() {
             <div>
               <p className="text-sm text-gray-700 dark:text-gray-200 mb-1">Check your email</p>
               <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
-                We sent a login link to <span className="font-medium">{magicEmail}</span>. Click it to sign in.
+                We sent a login link to <span className="font-medium">{magicEmail}</span>. Click it
+                to sign in.
               </p>
               <button
-                onClick={() => { setMagicSent(false); setMagicEmail(''); setMagicError(null) }}
+                onClick={() => {
+                  setMagicSent(false)
+                  setMagicEmail('')
+                  setMagicError(null)
+                }}
                 className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
               >
                 Use a different email
@@ -271,9 +294,7 @@ function AccountTab() {
               <p className="text-sm text-gray-500 dark:text-gray-400 mb-3">
                 Sign in to sync your data across devices and share with family members.
               </p>
-              {magicError && (
-                <p className="text-xs text-red-500 mb-2">{magicError}</p>
-              )}
+              {magicError && <p className="text-xs text-red-500 mb-2">{magicError}</p>}
               <div className="flex gap-2">
                 <input
                   type="email"
@@ -357,12 +378,17 @@ function AccountTab() {
                   ) : (
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">{family.name}</p>
+                        <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                          {family.name}
+                        </p>
                         <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">Family</p>
                       </div>
                       {profile?.id === family.owner_id && (
                         <button
-                          onClick={() => { setEditFamilyNameVal(family.name); setEditingFamilyName(true) }}
+                          onClick={() => {
+                            setEditFamilyNameVal(family.name)
+                            setEditingFamilyName(true)
+                          }}
                           className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
                         >
                           Rename
@@ -374,7 +400,9 @@ function AccountTab() {
 
                 {/* Invite code */}
                 <div className="p-4">
-                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Invite code</p>
+                  <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                    Invite code
+                  </p>
                   <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
                     Share this code with family members so they can join.
                   </p>
@@ -406,9 +434,7 @@ function AccountTab() {
                       Leave family
                     </button>
                   )}
-                  {familyError && (
-                    <p className="text-xs text-red-500 mt-2">{familyError}</p>
-                  )}
+                  {familyError && <p className="text-xs text-red-500 mt-2">{familyError}</p>}
                 </div>
               </>
             ) : (
@@ -416,19 +442,25 @@ function AccountTab() {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   Create a family to sync your data and share with others.
                 </p>
-                {familyError && (
-                  <p className="text-xs text-red-500">{familyError}</p>
-                )}
+                {familyError && <p className="text-xs text-red-500">{familyError}</p>}
                 {!showCreateForm && !showJoinForm && (
                   <div className="flex gap-2">
                     <button
-                      onClick={() => { setShowCreateForm(true); setShowJoinForm(false); setFamilyError(null) }}
+                      onClick={() => {
+                        setShowCreateForm(true)
+                        setShowJoinForm(false)
+                        setFamilyError(null)
+                      }}
                       className="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded transition-colors"
                     >
                       Create family
                     </button>
                     <button
-                      onClick={() => { setShowJoinForm(true); setShowCreateForm(false); setFamilyError(null) }}
+                      onClick={() => {
+                        setShowJoinForm(true)
+                        setShowCreateForm(false)
+                        setFamilyError(null)
+                      }}
                       className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                     >
                       Join with code
@@ -454,7 +486,10 @@ function AccountTab() {
                         Create
                       </button>
                       <button
-                        onClick={() => { setShowCreateForm(false); setFamilyError(null) }}
+                        onClick={() => {
+                          setShowCreateForm(false)
+                          setFamilyError(null)
+                        }}
                         className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         Cancel
@@ -481,7 +516,10 @@ function AccountTab() {
                         Join
                       </button>
                       <button
-                        onClick={() => { setShowJoinForm(false); setFamilyError(null) }}
+                        onClick={() => {
+                          setShowJoinForm(false)
+                          setFamilyError(null)
+                        }}
                         className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
                       >
                         Cancel
@@ -501,9 +539,13 @@ function AccountTab() {
           <SectionHeading>Storage</SectionHeading>
           <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl divide-y divide-gray-100 dark:divide-gray-800">
             <div className="p-4">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">Storage mode</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-3">
+                Storage mode
+              </p>
               {migrationMessage && (
-                <p className="text-xs text-green-600 dark:text-green-400 mb-3">{migrationMessage}</p>
+                <p className="text-xs text-green-600 dark:text-green-400 mb-3">
+                  {migrationMessage}
+                </p>
               )}
               <div className="space-y-2">
                 <label className="flex items-start gap-3 cursor-pointer">
@@ -516,7 +558,9 @@ function AccountTab() {
                     className="mt-0.5"
                   />
                   <div>
-                    <p className="text-sm text-gray-700 dark:text-gray-300">Local browser storage</p>
+                    <p className="text-sm text-gray-700 dark:text-gray-300">
+                      Local browser storage
+                    </p>
                     <p className="text-xs text-gray-400 dark:text-gray-500">
                       Data is saved in this browser only. Nothing leaves your device.
                     </p>
@@ -548,7 +592,9 @@ function AccountTab() {
             </div>
 
             <div className="p-4">
-              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">Storage usage</p>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-2">
+                Storage usage
+              </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                 {formatBytes(storageUsage.usedBytes)} used
                 {storageUsage.totalBytes ? ` of ${formatBytes(storageUsage.totalBytes)}` : ''}
@@ -560,7 +606,11 @@ function AccountTab() {
                 <div className="h-2 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
                   <div
                     className={`h-full rounded-full transition-all ${
-                      usagePct > 90 ? 'bg-red-500' : usagePct > 70 ? 'bg-amber-500' : 'bg-indigo-500'
+                      usagePct > 90
+                        ? 'bg-red-500'
+                        : usagePct > 70
+                          ? 'bg-amber-500'
+                          : 'bg-indigo-500'
                     }`}
                     style={{ width: `${usagePct}%` }}
                   />
@@ -654,17 +704,25 @@ function CategoriesTab() {
               </p>
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
                 {cats.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-600">No categories</p>
+                  <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-600">
+                    No categories
+                  </p>
                 ) : (
                   cats.map((cat) => (
                     <div
                       key={cat.id}
                       draggable
                       onDragStart={() => setDragId(cat.id)}
-                      onDragOver={(e) => { e.preventDefault(); setDragOverId(cat.id) }}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        setDragOverId(cat.id)
+                      }}
                       onDragLeave={() => setDragOverId((prev) => (prev === cat.id ? null : prev))}
                       onDrop={() => handleDrop(cat.id, cats)}
-                      onDragEnd={() => { setDragId(null); setDragOverId(null) }}
+                      onDragEnd={() => {
+                        setDragId(null)
+                        setDragOverId(null)
+                      }}
                       className={`flex items-center gap-3 px-4 py-2.5 select-none transition-colors ${
                         dragOverId === cat.id && dragId !== cat.id
                           ? 'bg-indigo-50 dark:bg-indigo-900/20'
@@ -694,7 +752,14 @@ function CategoriesTab() {
                         className="shrink-0 text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-500 transition-colors"
                         title="Delete category"
                       >
-                        <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                        <svg
+                          className="w-4 h-4"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
                           <line x1="3" y1="3" x2="13" y2="13" />
                           <line x1="13" y1="3" x2="3" y2="13" />
                         </svg>
@@ -731,7 +796,10 @@ function CategoriesTab() {
                 Cancel
               </button>
               <button
-                onClick={() => { removeCategory(pendingDelete.id); setPendingDelete(null) }}
+                onClick={() => {
+                  removeCategory(pendingDelete.id)
+                  setPendingDelete(null)
+                }}
                 className="px-3 py-1.5 text-sm text-white bg-red-500 hover:bg-red-600 rounded transition-colors"
               >
                 Delete
@@ -851,7 +919,9 @@ function DataTab() {
             >
               <option value="all">All months</option>
               {monthKeys.map((key) => (
-                <option key={key} value={key}>{formatMonthKey(key)}</option>
+                <option key={key} value={key}>
+                  {formatMonthKey(key)}
+                </option>
               ))}
             </select>
             <button
@@ -866,7 +936,9 @@ function DataTab() {
             )}
           </div>
           {monthKeys.length === 0 && (
-            <p className="text-xs text-gray-400 dark:text-gray-600 mt-3">No transaction data yet.</p>
+            <p className="text-xs text-gray-400 dark:text-gray-600 mt-3">
+              No transaction data yet.
+            </p>
           )}
         </div>
       </div>
@@ -893,9 +965,7 @@ function DataTab() {
             <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
               Restore from a previously exported JSON backup. This will replace all current data.
             </p>
-            {importError && (
-              <p className="text-xs text-red-500 mb-2">{importError}</p>
-            )}
+            {importError && <p className="text-xs text-red-500 mb-2">{importError}</p>}
             <input
               ref={fileRef}
               type="file"
@@ -927,7 +997,8 @@ function DataTab() {
               Replace all data?
             </h3>
             <p className="text-xs text-gray-500 dark:text-gray-400 mb-5 leading-relaxed">
-              Importing this backup will replace everything currently in the app. This cannot be undone.
+              Importing this backup will replace everything currently in the app. This cannot be
+              undone.
             </p>
             <div className="flex justify-end gap-3">
               <button

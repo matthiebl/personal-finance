@@ -5,7 +5,7 @@ import { CurrencyInput, SuffixInput } from '../components/inputs'
 import { PageHeader, SectionHeading } from '../components/layout'
 import type { DataTableColumn } from '../components/table'
 import { DataTable } from '../components/table'
-import { useAppData } from '../context/AppDataContext'
+import { useAppData } from '../context/useAppData'
 import { calcMonthsToGoal, fmt } from '../lib/finance'
 
 const EXPENSE_COLORS = [

@@ -1,28 +1,44 @@
 import { useEffect, useMemo } from 'react'
 import type { DonutSegment, NetworthDatum, NetworthSeriesEntry } from '../components/charts'
-import {
-  DonutChart,
-  ExpandableChart,
-  NETWORTH_ASSET_COLORS,
-  NETWORTH_LIABILITY_COLORS,
-  NetworthStackedChart,
-} from '../components/charts'
+import { DonutChart, ExpandableChart, NetworthStackedChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import { CurrencyInput, TextInput } from '../components/inputs'
-import type { MonthSlot } from '../components/layout'
-import {
-  PageHeader,
-  SectionHeading,
-  ViewToggle,
-  YearSelector,
-  useAnnualPicker,
-} from '../components/layout'
-import { useAppData } from '../context/AppDataContext'
+import { PageHeader, SectionHeading, ViewToggle, YearSelector } from '../components/layout'
+import { useAppData } from '../context/useAppData'
+import type { MonthSlot } from '../lib/annualPicker'
+import { useAnnualPicker } from '../lib/annualPicker'
+import { NETWORTH_ASSET_COLORS, NETWORTH_LIABILITY_COLORS } from '../lib/chartColors'
 import { fmt, fmtCents } from '../lib/finance'
 import type { NetworthEntry } from '../lib/types'
 
-const MONTH_ABBR = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-const MONTH_FULL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const MONTH_ABBR = [
+  'Jan',
+  'Feb',
+  'Mar',
+  'Apr',
+  'May',
+  'Jun',
+  'Jul',
+  'Aug',
+  'Sep',
+  'Oct',
+  'Nov',
+  'Dec',
+]
+const MONTH_FULL = [
+  'January',
+  'February',
+  'March',
+  'April',
+  'May',
+  'June',
+  'July',
+  'August',
+  'September',
+  'October',
+  'November',
+  'December',
+]
 const MONTH_KEYS = MONTH_ABBR.map((_, i) => String(i + 1).padStart(2, '0'))
 
 // ─── NetworthEntryTable ───────────────────────────────────────────────────────
@@ -116,7 +132,11 @@ function NetworthEntryTable({
                   )
                 })}
                 <td className="py-1.5 px-2 text-right tabular-nums text-gray-700 dark:text-gray-300 font-medium">
-                  {latestVal > 0 ? fmt(latestVal) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                  {latestVal > 0 ? (
+                    fmt(latestVal)
+                  ) : (
+                    <span className="text-gray-300 dark:text-gray-700">—</span>
+                  )}
                 </td>
                 <td className="py-1.5 pr-3 text-center">
                   <button
@@ -133,18 +153,26 @@ function NetworthEntryTable({
         </tbody>
         <tfoot>
           <tr className="border-t-2 border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800/50 font-semibold">
-            <td className={`sticky left-0 z-10 py-2.5 pl-4 pr-2 bg-gray-100 dark:bg-gray-800/50 ${accentClass}`}>
+            <td
+              className={`sticky left-0 z-10 py-2.5 pl-4 pr-2 bg-gray-100 dark:bg-gray-800/50 ${accentClass}`}
+            >
               Total {isAsset ? 'Assets' : 'Liabilities'}
             </td>
             {monthTotals.map((total, i) => (
               <td key={i} className={`py-2.5 px-2 text-right tabular-nums ${accentClass}`}>
-                {total > 0 ? fmt(total) : <span className="text-gray-300 dark:text-gray-700">—</span>}
+                {total > 0 ? (
+                  fmt(total)
+                ) : (
+                  <span className="text-gray-300 dark:text-gray-700">—</span>
+                )}
               </td>
             ))}
             <td className={`py-2.5 px-2 text-right tabular-nums ${accentClass}`}>
-              {monthTotals[monthTotals.length - 1] > 0
-                ? fmt(monthTotals[monthTotals.length - 1])
-                : <span className="text-gray-300 dark:text-gray-700">—</span>}
+              {monthTotals[monthTotals.length - 1] > 0 ? (
+                fmt(monthTotals[monthTotals.length - 1])
+              ) : (
+                <span className="text-gray-300 dark:text-gray-700">—</span>
+              )}
             </td>
             <td />
           </tr>
@@ -154,7 +182,8 @@ function NetworthEntryTable({
                 onClick={onAdd}
                 className="text-xs text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-400 transition-colors flex items-center gap-1.5"
               >
-                <span className="text-sm font-medium leading-none">+</span> Add {isAsset ? 'asset' : 'liability'}
+                <span className="text-sm font-medium leading-none">+</span> Add{' '}
+                {isAsset ? 'asset' : 'liability'}
               </button>
             </td>
           </tr>
@@ -210,11 +239,11 @@ export default function NetWorth() {
     const vals = data.networth.months[ym] ?? {}
     const totalAssets = data.networth.assets.reduce(
       (s, e) => s + (parseFloat(vals[e.id] ?? '') || 0),
-      0,
+      0
     )
     const totalLiabilities = data.networth.liabilities.reduce(
       (s, e) => s + (parseFloat(vals[e.id] ?? '') || 0),
-      0,
+      0
     )
     const netWorth = totalAssets - totalLiabilities
     const ratio = totalLiabilities > 0 ? totalAssets / totalLiabilities : null
@@ -334,14 +363,26 @@ export default function NetWorth() {
         {(assetSeries.length > 0 || liabilitySeries.length > 0) && (
           <div className="flex flex-wrap gap-x-4 gap-y-1 mb-3">
             {assetSeries.map((s) => (
-              <div key={s.id} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+              <div
+                key={s.id}
+                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ backgroundColor: s.color }}
+                />
                 {s.label}
               </div>
             ))}
             {liabilitySeries.map((s) => (
-              <div key={s.id} className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-                <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+              <div
+                key={s.id}
+                className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
+              >
+                <span
+                  className="w-2.5 h-2.5 rounded-sm shrink-0"
+                  style={{ backgroundColor: s.color }}
+                />
                 {s.label}
               </div>
             ))}
@@ -366,7 +407,9 @@ export default function NetWorth() {
         />
       </div>
 
-      <SectionHeading>Breakdown ({activeMonthSlots[activeMonthSlots.length - 1].full})</SectionHeading>
+      <SectionHeading>
+        Breakdown ({activeMonthSlots[activeMonthSlots.length - 1].full})
+      </SectionHeading>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold text-green-600 dark:text-green-400 mb-3">Assets</p>
@@ -376,8 +419,13 @@ export default function NetWorth() {
               {assetSegments.map((s) => (
                 <div key={s.label} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="text-gray-600 dark:text-gray-400 truncate max-w-32">{s.label}</span>
+                    <span
+                      className="w-2 h-2 rounded-sm shrink-0"
+                      style={{ backgroundColor: s.color }}
+                    />
+                    <span className="text-gray-600 dark:text-gray-400 truncate max-w-32">
+                      {s.label}
+                    </span>
                   </div>
                   <span className="tabular-nums text-gray-700 dark:text-gray-300 ml-2">
                     {fmt(s.value)}{' '}
@@ -392,14 +440,23 @@ export default function NetWorth() {
         </div>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs font-semibold text-red-500 dark:text-red-400 mb-3">Liabilities</p>
-          <DonutChart segments={liabilitySegments} height={200} emptyMessage="No liabilities recorded" />
+          <DonutChart
+            segments={liabilitySegments}
+            height={200}
+            emptyMessage="No liabilities recorded"
+          />
           {liabilitySegments.length > 0 && (
             <div className="mt-3 space-y-1">
               {liabilitySegments.map((s) => (
                 <div key={s.label} className="flex items-center justify-between text-xs">
                   <div className="flex items-center gap-1.5">
-                    <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
-                    <span className="text-gray-600 dark:text-gray-400 truncate max-w-32">{s.label}</span>
+                    <span
+                      className="w-2 h-2 rounded-sm shrink-0"
+                      style={{ backgroundColor: s.color }}
+                    />
+                    <span className="text-gray-600 dark:text-gray-400 truncate max-w-32">
+                      {s.label}
+                    </span>
                   </div>
                   <span className="tabular-nums text-gray-700 dark:text-gray-300 ml-2">
                     {fmt(s.value)}{' '}

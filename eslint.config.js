@@ -5,6 +5,7 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { defineConfig, globalIgnores } from 'eslint/config'
 import eslintConfigPrettier from 'eslint-config-prettier'
+import prettier from 'eslint-plugin-prettier'
 
 export default defineConfig([
   globalIgnores(['dist']),
@@ -17,6 +18,10 @@ export default defineConfig([
       reactRefresh.configs.vite,
       eslintConfigPrettier,
     ],
+    plugins: { prettier },
+    rules: {
+      'prettier/prettier': 'error',
+    },
     languageOptions: {
       globals: globals.browser,
     },
