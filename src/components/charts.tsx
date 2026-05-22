@@ -1,10 +1,13 @@
-import { useMemo } from 'react'
-import { fmt, fmtAxis } from '../lib/finance'
+import type { ReactNode } from 'react'
+import { useMemo, useState } from 'react'
 import {
+  Area,
   Bar,
   BarChart,
   CartesianGrid,
   Cell,
+  ComposedChart,
+  Line,
   Pie,
   PieChart,
   ReferenceLine,
@@ -13,6 +16,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import { fmt, fmtAxis } from '../lib/finance'
 
 export type DonutSegment = { label: string; value: number; color: string }
 
@@ -37,7 +41,6 @@ function DonutTooltip({ active, payload }: { active?: boolean; payload?: Tooltip
 }
 
 // ─── Growth Bar Chart ────────────────────────────────────────────────────────
-
 
 type GrowthBarDatum = { label: string; initial: number; deposits: number; interest: number }
 
@@ -173,9 +176,7 @@ function GrowthTooltip({
               {GROWTH_LABELS[p.name] ?? p.name}
             </span>
           </div>
-          <span className="text-gray-700 dark:text-gray-200 tabular-nums">
-            {fmt(p.value)}
-          </span>
+          <span className="text-gray-700 dark:text-gray-200 tabular-nums">{fmt(p.value)}</span>
         </div>
       ))}
       {nonZero.length > 1 && (
@@ -401,5 +402,267 @@ export function DonutChart({
         <Tooltip content={<DonutTooltip />} />
       </PieChart>
     </ResponsiveContainer>
+  )
+}
+
+// ─── Monthly Trend Chart ─────────────────────────────────────────────────────
+
+export type TrendDatum = { month: string; income: number; expenses: number; savings: number }
+
+type TrendTooltipPayload = { name: string; value: number; color: string }
+
+function TrendTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: TrendTooltipPayload[]
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  const nonZero = payload.filter((p) => p.value > 0)
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
+      <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
+      {nonZero.map((p) => (
+        <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
+            <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
+          </div>
+          <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+export function MonthlyTrendChart({ data, height = 260 }: { data: TrendDatum[]; height?: number }) {
+  const hasData = data.some((d) => d.income > 0 || d.expenses > 0 || d.savings > 0)
+  if (!hasData) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <p className="text-xs text-gray-400 dark:text-gray-600">
+          Add transactions to see annual trends
+        </p>
+      </div>
+    )
+  }
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tickFormatter={fmtAxis}
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          width={48}
+        />
+        <Tooltip content={<TrendTooltip />} cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }} />
+        <Area
+          type="monotone"
+          dataKey="income"
+          name="Income"
+          fill="#10b981"
+          stroke="#10b981"
+          fillOpacity={0.12}
+          strokeWidth={2}
+          dot={false}
+        />
+        <Area
+          type="monotone"
+          dataKey="expenses"
+          name="Expenses"
+          fill="#f43f5e"
+          stroke="#f43f5e"
+          fillOpacity={0.12}
+          strokeWidth={2}
+          dot={false}
+        />
+        <Line
+          type="monotone"
+          dataKey="savings"
+          name="Savings"
+          stroke="#6366f1"
+          strokeWidth={2}
+          dot={false}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Income vs Outgoing Chart ─────────────────────────────────────────────────
+
+export type IncomeOutgoingDatum = { month: string; income: number; outgoing: number }
+
+function IncomeOutgoingTooltip({
+  active,
+  payload,
+  label,
+}: {
+  active?: boolean
+  payload?: TrendTooltipPayload[]
+  label?: string
+}) {
+  if (!active || !payload?.length) return null
+  const nonZero = payload.filter((p) => p.value > 0)
+  const income = payload.find((p) => p.name === 'Income')?.value ?? 0
+  const outgoing = payload.find((p) => p.name === 'Outgoing')?.value ?? 0
+  const surplus = income - outgoing
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
+      <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
+      {nonZero.map((p) => (
+        <div key={p.name} className="flex items-center justify-between gap-4 mb-0.5">
+          <div className="flex items-center gap-1.5">
+            <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: p.color }} />
+            <span className="text-gray-500 dark:text-gray-400">{p.name}</span>
+          </div>
+          <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
+        </div>
+      ))}
+      {income > 0 && outgoing > 0 && (
+        <div className="border-t border-gray-200 dark:border-gray-700 mt-1.5 pt-1.5 flex justify-between">
+          <span className="text-gray-500 dark:text-gray-400">Surplus</span>
+          <span
+            className={`tabular-nums font-medium ${surplus >= 0 ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'}`}
+          >
+            {fmt(surplus)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function IncomeVsOutgoingChart({
+  data,
+  height = 260,
+}: {
+  data: IncomeOutgoingDatum[]
+  height?: number
+}) {
+  const hasData = data.some((d) => d.income > 0 || d.outgoing > 0)
+  if (!hasData) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <p className="text-xs text-gray-400 dark:text-gray-600">
+          Add transactions to see income vs outgoing
+        </p>
+      </div>
+    )
+  }
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid vertical={false} strokeDasharray="3 3" stroke="#e5e7eb" />
+        <XAxis
+          dataKey="month"
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tickFormatter={fmtAxis}
+          tick={{ fontSize: 10, fill: '#9ca3af' }}
+          axisLine={false}
+          tickLine={false}
+          width={48}
+        />
+        <Tooltip
+          content={<IncomeOutgoingTooltip />}
+          cursor={{ stroke: '#e5e7eb', strokeWidth: 1 }}
+        />
+        <Area
+          type="monotone"
+          dataKey="income"
+          name="Income"
+          fill="#10b981"
+          stroke="#10b981"
+          fillOpacity={0.15}
+          strokeWidth={2}
+          dot={false}
+        />
+        <Area
+          type="monotone"
+          dataKey="outgoing"
+          name="Outgoing"
+          fill="#f43f5e"
+          stroke="#f43f5e"
+          fillOpacity={0.15}
+          strokeWidth={2}
+          dot={false}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Expandable Chart ────────────────────────────────────────────────────────
+
+export function ExpandableChart({
+  title,
+  height = 260,
+  expandedHeight = 480,
+  renderChart,
+}: {
+  title: string
+  height?: number
+  expandedHeight?: number
+  renderChart: (height: number) => ReactNode
+}) {
+  const [expanded, setExpanded] = useState(false)
+  return (
+    <div className="relative bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+      <button
+        onClick={() => setExpanded(true)}
+        className="absolute z-50 top-3 right-3 p-1 rounded text-gray-300 dark:text-gray-600 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors "
+        aria-label="Expand chart"
+      >
+        <svg
+          width="14"
+          height="14"
+          viewBox="0 0 14 14"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+        >
+          <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" />
+        </svg>
+      </button>
+      {renderChart(height)}
+      {expanded && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6 xl:p-24"
+          onClick={() => setExpanded(false)}
+        >
+          <div
+            className="bg-white dark:bg-gray-900 rounded-2xl p-6 w-full shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <p className="font-semibold text-gray-700 dark:text-gray-200">{title}</p>
+              <button
+                onClick={() => setExpanded(false)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-lg leading-none"
+              >
+                ×
+              </button>
+            </div>
+            {renderChart(expandedHeight)}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
