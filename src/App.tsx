@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
 import { AppDataProvider } from './context/AppDataContext'
 import { AuthProvider } from './context/AuthContext'
+import { useAppData } from './context/useAppData'
+import { useAuth } from './context/useAuth'
 import Calculators from './pages/Calculators'
 import DebtSnowball from './pages/DebtSnowball'
 import EmergencyFund from './pages/EmergencyFund'
@@ -60,6 +62,9 @@ function Sidebar({
   open: boolean
   onClose: () => void
 }) {
+  const { user } = useAuth()
+  const { data } = useAppData()
+
   return (
     <>
       {/* Mobile backdrop */}
@@ -104,12 +109,24 @@ function Sidebar({
           ))}
         </nav>
 
-        <div className="px-5 py-4 border-t border-gray-200 dark:border-gray-800 flex items-center justify-between">
-          <span className="text-xs text-gray-400 dark:text-gray-500">2026</span>
+        <div className="px-4 py-3 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/50 flex items-center justify-center shrink-0">
+            <span className="text-xs font-semibold text-indigo-600 dark:text-indigo-400">
+              {user ? (user.email?.[0] ?? '?').toUpperCase() : '?'}
+            </span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs text-gray-700 dark:text-gray-300 truncate leading-tight">
+              {user ? user.email : 'Not signed in'}
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 leading-tight">
+              {data.storageMode === 'account' ? 'Account sync' : 'Local only'}
+            </p>
+          </div>
           <button
             onClick={onToggleDark}
             aria-label="Toggle dark mode"
-            className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 dark:border-gray-700 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors shrink-0"
           >
             {dark ? (
               <svg

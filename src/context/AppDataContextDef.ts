@@ -53,6 +53,7 @@ export type AppDataContextValue = {
 
   setStorageMode: (mode: StorageMode) => void
   migrateToAccount: (strategy: 'upload' | 'download') => Promise<void>
+  syncFromCloud: () => Promise<void>
   hasCloudData: () => Promise<boolean>
   storageUsage: { usedBytes: number; totalBytes: number | null }
   storageError: string | null

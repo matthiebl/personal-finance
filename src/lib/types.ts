@@ -50,6 +50,7 @@ export type DebtRow = {
   balance: string
   minPayment: string
   interestRate: string
+  keepPayment?: boolean
 }
 
 export type NetworthEntry = {

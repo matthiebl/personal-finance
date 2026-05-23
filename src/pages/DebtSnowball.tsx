@@ -52,6 +52,7 @@ export default function DebtSnowball() {
           balance: d.balanceNum,
           minPayment: d.minNum,
           rate: d.rateNum,
+          keepPayment: d.keepPayment,
         })),
         extraNum,
         strategy,
@@ -235,6 +236,12 @@ export default function DebtSnowball() {
                 <th className="text-right py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-28">
                   Est. Payoff
                 </th>
+                <th
+                  className="text-center py-2 px-2 font-medium text-gray-500 dark:text-gray-400 w-24"
+                  title="Keep this debt's minimum payment when paid off instead of rolling it to other debts"
+                >
+                  Keep Pmt
+                </th>
                 <th className="w-8 pr-2" />
               </tr>
             </thead>
@@ -294,6 +301,15 @@ export default function DebtSnowball() {
                     <td className="py-1.5 px-2 text-right tabular-nums text-gray-500 dark:text-gray-400 text-xs">
                       {payoffDate ? formatYearMonth(payoffDate) : '—'}
                     </td>
+                    <td className="py-1.5 px-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={!!debt.keepPayment}
+                        onChange={(e) => updateDebtRow(debt.id, { keepPayment: e.target.checked })}
+                        className="w-4 h-4 rounded border-gray-300 dark:border-gray-600 accent-gray-700 dark:accent-gray-300 cursor-pointer"
+                        title="Keep payment — don't roll to other debts when paid off"
+                      />
+                    </td>
                     <td className="py-1.5 pr-3 text-center">
                       <button
                         onClick={() => removeDebtRow(debt.id)}
@@ -316,6 +332,7 @@ export default function DebtSnowball() {
                   <td className="py-2 px-2 text-right tabular-nums text-gray-700 dark:text-gray-200">
                     {totalMin > 0 ? fmt(totalMin) : '—'}
                   </td>
+                  <td />
                   <td />
                   <td />
                   <td />

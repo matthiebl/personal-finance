@@ -38,6 +38,7 @@ export type DebtPayoffInput = {
   balance: number
   minPayment: number
   rate: number
+  keepPayment?: boolean
 }
 
 export type PayoffPeriodDatum = { label: string; [id: string]: number | string }
@@ -99,7 +100,7 @@ export function calcDebtPayoff(
           balances[d.id] = 0
           if (payoffMonths[d.id] === null) {
             payoffMonths[d.id] = month
-            freedPayments += d.minPayment
+            if (!d.keepPayment) freedPayments += d.minPayment
           }
         }
       }
@@ -125,7 +126,7 @@ export function calcDebtPayoff(
           balances[d.id] = 0
           if (payoffMonths[d.id] === null) {
             payoffMonths[d.id] = month
-            freedPayments += d.minPayment
+            if (!d.keepPayment) freedPayments += d.minPayment
           }
         }
       }

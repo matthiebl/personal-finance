@@ -790,8 +790,7 @@ function CategoriesTab() {
 // ─── Data tab ─────────────────────────────────────────────────────────────────
 
 function DataTab() {
-  const { data } = useAppData()
-  const { condenseTransactions } = useAppData()
+  const { data, condenseTransactions, syncFromCloud } = useAppData()
 
   const monthKeys: string[] = []
   for (const [year, yearData] of Object.entries(data.budget.years)) {
@@ -803,6 +802,24 @@ function DataTab() {
 
   const [condenseMonth, setCondenseMonth] = useState('all')
   const [condenseDone, setCondenseDone] = useState(false)
+
+  const [syncBusy, setSyncBusy] = useState(false)
+  const [syncDone, setSyncDone] = useState(false)
+  const [syncError, setSyncError] = useState<string | null>(null)
+
+  async function handleSyncFromCloud() {
+    setSyncBusy(true)
+    setSyncError(null)
+    try {
+      await syncFromCloud()
+      setSyncDone(true)
+      setTimeout(() => setSyncDone(false), 2500)
+    } catch (e) {
+      setSyncError(e instanceof Error ? e.message : 'Sync failed')
+    } finally {
+      setSyncBusy(false)
+    }
+  }
 
   useEffect(() => {
     if (!condenseDone) return
@@ -878,6 +895,35 @@ function DataTab() {
 
   return (
     <div className="space-y-8">
+      {/* Sync from cloud — account mode only */}
+      {data.storageMode === 'account' && (
+        <div>
+          <SectionHeading>Cloud sync</SectionHeading>
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-200 mb-1">
+              Pull from cloud
+            </p>
+            <p className="text-xs text-gray-400 dark:text-gray-500 mb-3">
+              Load the latest data from your account. Useful when changes were made on another
+              device.
+            </p>
+            {syncError && <p className="text-xs text-red-500 mb-2">{syncError}</p>}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={handleSyncFromCloud}
+                disabled={syncBusy}
+                className="px-3 py-1.5 text-sm border border-gray-200 dark:border-gray-700 rounded text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50 transition-colors"
+              >
+                {syncBusy ? 'Syncing…' : 'Pull from cloud'}
+              </button>
+              {syncDone && (
+                <span className="text-xs text-green-600 dark:text-green-400">Done.</span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Condense */}
       <div>
         <SectionHeading>Condense transactions</SectionHeading>

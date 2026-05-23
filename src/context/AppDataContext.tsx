@@ -416,6 +416,14 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  async function syncFromCloud() {
+    if (!family) throw new Error('No family')
+    const accountAdapter = new AccountStorageAdapter(family.id)
+    const cloudData = await accountAdapter.load()
+    setData({ ...cloudData, storageMode: 'account' })
+    accountAdapter.estimateUsage().then(setStorageUsage)
+  }
+
   async function hasCloudData(): Promise<boolean> {
     if (!family) return false
     const accountAdapter = new AccountStorageAdapter(family.id)
@@ -450,6 +458,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setNetworthValue,
     setStorageMode,
     migrateToAccount,
+    syncFromCloud,
     hasCloudData,
     storageUsage,
     storageError,
