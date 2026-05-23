@@ -6,7 +6,6 @@ import Calculators from './pages/Calculators'
 import DebtSnowball from './pages/DebtSnowball'
 import EmergencyFund from './pages/EmergencyFund'
 import HomeAffordability from './pages/HomeAffordability'
-import Investments from './pages/Investments'
 import MonthlyData from './pages/MonthlyData'
 import NetWorth from './pages/NetWorth'
 import NotFound from './pages/NotFound'
@@ -42,10 +41,7 @@ const NAV_GROUPS = [
   },
   {
     label: 'Tools',
-    links: [
-      { to: '/calculators', label: 'Calculators' },
-      { to: '/investments', label: 'Investment Calc' },
-    ],
+    links: [{ to: '/calculators', label: 'Calculators' }],
   },
   {
     label: 'Account',
@@ -185,7 +181,6 @@ function App() {
                 <Route path="/debt-snowball" element={<DebtSnowball />} />
                 <Route path="/home" element={<HomeAffordability />} />
                 <Route path="/calculators" element={<Calculators />} />
-                <Route path="/investments" element={<Investments />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
