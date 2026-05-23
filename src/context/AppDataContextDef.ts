@@ -3,6 +3,7 @@ import type {
   AppData,
   BudgetCategory,
   BudgetMonth,
+  DebtRow,
   EmergencyFundData,
   ExpenseType,
   NetworthEntry,
@@ -32,6 +33,11 @@ export type AppDataContextValue = {
   addSinkingFund: () => void
   updateSinkingFund: (id: string, patch: Partial<Omit<SinkingFundRow, 'id'>>) => void
   removeSinkingFund: (id: string) => void
+
+  addDebtRow: () => void
+  updateDebtRow: (id: string, patch: Partial<Omit<DebtRow, 'id'>>) => void
+  removeDebtRow: (id: string) => void
+  setDebtExtraPayment: (value: string) => void
 
   addNetworthEntry: (type: 'asset' | 'liability') => void
   updateNetworthEntry: (

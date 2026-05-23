@@ -80,6 +80,8 @@ export const DEFAULT_APP_DATA: AppData = {
   },
   emergencyFund: SEED_EMERGENCY_FUND,
   sinkingFunds: [],
+  debtRows: [],
+  debtExtraPayment: '',
   networth: {
     assets: [],
     liabilities: [],

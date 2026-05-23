@@ -44,6 +44,14 @@ export type SinkingFundRow = {
   interestRate: string
 }
 
+export type DebtRow = {
+  id: string
+  name: string
+  balance: string
+  minPayment: string
+  interestRate: string
+}
+
 export type NetworthEntry = {
   id: string
   name: string
@@ -64,5 +72,7 @@ export type AppData = {
   }
   emergencyFund: EmergencyFundData
   sinkingFunds: SinkingFundRow[]
+  debtRows: DebtRow[]
+  debtExtraPayment: string
   networth: NetworthData
 }

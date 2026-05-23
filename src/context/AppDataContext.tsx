@@ -10,6 +10,7 @@ import type {
   AppData,
   BudgetCategory,
   BudgetMonth,
+  DebtRow,
   EmergencyFundData,
   ExpenseType,
   NetworthEntry,
@@ -288,6 +289,34 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => ({ ...prev, sinkingFunds: prev.sinkingFunds.filter((r) => r.id !== id) }))
   }
 
+  // ─── Debt snowball ────────────────────────────────────────────────────────
+
+  function addDebtRow() {
+    const row: DebtRow = {
+      id: crypto.randomUUID(),
+      name: '',
+      balance: '',
+      minPayment: '',
+      interestRate: '',
+    }
+    setData((prev) => ({ ...prev, debtRows: [...prev.debtRows, row] }))
+  }
+
+  function updateDebtRow(id: string, patch: Partial<Omit<DebtRow, 'id'>>) {
+    setData((prev) => ({
+      ...prev,
+      debtRows: prev.debtRows.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+    }))
+  }
+
+  function removeDebtRow(id: string) {
+    setData((prev) => ({ ...prev, debtRows: prev.debtRows.filter((r) => r.id !== id) }))
+  }
+
+  function setDebtExtraPayment(value: string) {
+    setData((prev) => ({ ...prev, debtExtraPayment: value }))
+  }
+
   // ─── Net worth ────────────────────────────────────────────────────────────
 
   function addNetworthEntry(type: 'asset' | 'liability') {
@@ -403,6 +432,10 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     addSinkingFund,
     updateSinkingFund,
     removeSinkingFund,
+    addDebtRow,
+    updateDebtRow,
+    removeDebtRow,
+    setDebtExtraPayment,
     addNetworthEntry,
     updateNetworthEntry,
     removeNetworthEntry,

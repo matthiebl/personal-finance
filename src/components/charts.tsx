@@ -16,6 +16,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import type { PayoffPeriodDatum } from '../lib/finance'
 import { fmt, fmtAxis } from '../lib/finance'
 
 export type DonutSegment = { label: string; value: number; color: string }
@@ -943,6 +944,126 @@ export function NetworthStackedChart({
           strokeWidth={2.5}
           dot={false}
         />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Debt Payoff Chart ────────────────────────────────────────────────────────
+
+export type DebtPayoffChartSeries = { id: string; label: string; color: string }
+
+function DebtPayoffTooltip({
+  active,
+  payload,
+  label,
+  series,
+}: {
+  active?: boolean
+  payload?: { dataKey: string; value: number }[]
+  label?: string
+  series: DebtPayoffChartSeries[]
+}) {
+  if (!active || !payload?.length) return null
+  const seriesMap = Object.fromEntries(series.map((s) => [s.id, s]))
+  const items = payload.filter((p) => (p.value ?? 0) > 0)
+  const total = items.reduce((s, p) => s + (p.value ?? 0), 0)
+  return (
+    <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 shadow-md text-xs">
+      <p className="font-medium text-gray-700 dark:text-gray-200 mb-1.5">{label}</p>
+      {[...items].reverse().map((p) => {
+        const s = seriesMap[p.dataKey]
+        if (!s) return null
+        return (
+          <div key={p.dataKey} className="flex items-center justify-between gap-4 mb-0.5">
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-sm shrink-0" style={{ backgroundColor: s.color }} />
+              <span className="text-gray-600 dark:text-gray-400">{s.label}</span>
+            </div>
+            <span className="tabular-nums text-gray-700 dark:text-gray-200">{fmt(p.value)}</span>
+          </div>
+        )
+      })}
+      {items.length > 1 && (
+        <div className="flex items-center justify-between gap-4 mt-1 pt-1 border-t border-gray-100 dark:border-gray-700">
+          <span className="text-gray-500 dark:text-gray-400">Total</span>
+          <span className="tabular-nums font-medium text-gray-700 dark:text-gray-200">
+            {fmt(total)}
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export function DebtPayoffChart({
+  data,
+  series,
+  height = 280,
+}: {
+  data: PayoffPeriodDatum[]
+  series: DebtPayoffChartSeries[]
+  height?: number | string
+}) {
+  if (data.length === 0 || series.length === 0) {
+    return (
+      <div
+        className="flex items-center justify-center text-xs text-gray-400 dark:text-gray-600"
+        style={{ height }}
+      >
+        Add debts to see payoff timeline
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={height as number}>
+      <ComposedChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+        <CartesianGrid
+          vertical={false}
+          strokeDasharray="3 3"
+          stroke="#e5e7eb"
+          className="dark:stroke-gray-700"
+        />
+        <XAxis
+          dataKey="label"
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          tickLine={false}
+          axisLine={false}
+          interval="preserveStartEnd"
+        />
+        <YAxis
+          tickFormatter={fmtAxis}
+          tick={{ fontSize: 11, fill: '#9ca3af' }}
+          tickLine={false}
+          axisLine={false}
+          width={52}
+        />
+        <Tooltip
+          content={(props) => (
+            <DebtPayoffTooltip
+              active={props.active}
+              payload={props.payload as unknown as { dataKey: string; value: number }[]}
+              label={props.label as string}
+              series={series}
+            />
+          )}
+          cursor={{ fill: 'rgba(0,0,0,0.04)' }}
+        />
+        {series.map((s) => (
+          <Area
+            key={s.id}
+            type="monotone"
+            dataKey={s.id}
+            name={s.label}
+            stackId="debts"
+            fill={s.color}
+            stroke={s.color}
+            fillOpacity={0.6}
+            strokeWidth={1}
+            dot={false}
+          />
+        ))}
       </ComposedChart>
     </ResponsiveContainer>
   )
