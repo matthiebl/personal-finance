@@ -6,6 +6,7 @@ import type {
   DebtRow,
   EmergencyFundData,
   ExpenseType,
+  HomeAffordabilityData,
   NetworthEntry,
   SinkingFundRow,
   StorageMode,
@@ -47,6 +48,8 @@ export type AppDataContextValue = {
   ) => void
   removeNetworthEntry: (type: 'asset' | 'liability', id: string) => void
   setNetworthValue: (yearMonth: string, entryId: string, amount: string) => void
+
+  setHomeAffordability: (patch: Partial<HomeAffordabilityData>) => void
 
   setStorageMode: (mode: StorageMode) => void
   migrateToAccount: (strategy: 'upload' | 'download') => Promise<void>

@@ -13,6 +13,7 @@ import type {
   DebtRow,
   EmergencyFundData,
   ExpenseType,
+  HomeAffordabilityData,
   NetworthEntry,
   SinkingFundRow,
   StorageMode,
@@ -264,6 +265,12 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     setData((prev) => ({ ...prev, emergencyFund: { ...prev.emergencyFund, ...patch } }))
   }
 
+  // ─── Home affordability ───────────────────────────────────────────────────
+
+  function setHomeAffordability(patch: Partial<HomeAffordabilityData>) {
+    setData((prev) => ({ ...prev, homeAffordability: { ...prev.homeAffordability, ...patch } }))
+  }
+
   // ─── Sinking funds ────────────────────────────────────────────────────────
 
   function addSinkingFund() {
@@ -429,6 +436,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     removeTransaction,
     condenseTransactions,
     setEmergencyFund,
+    setHomeAffordability,
     addSinkingFund,
     updateSinkingFund,
     removeSinkingFund,

@@ -197,3 +197,190 @@ export function calcMonthsToGoal(
   }
   return null
 }
+
+export function calcMortgageRepayment(
+  principal: number,
+  annualRate: number,
+  termYears: number
+): number {
+  if (principal <= 0 || termYears <= 0) return 0
+  const n = termYears * 12
+  if (annualRate <= 0) return principal / n
+  const r = annualRate / 100 / 12
+  return (principal * r * Math.pow(1 + r, n)) / (Math.pow(1 + r, n) - 1)
+}
+
+export function calcBorrowingCapacity(
+  maxMonthlyRepayment: number,
+  assessmentRate: number,
+  termYears: number
+): number {
+  if (maxMonthlyRepayment <= 0 || assessmentRate <= 0 || termYears <= 0) return 0
+  const r = assessmentRate / 100 / 12
+  const n = termYears * 12
+  return (maxMonthlyRepayment * (Math.pow(1 + r, n) - 1)) / (r * Math.pow(1 + r, n))
+}
+
+export function calcLMI(loanAmount: number, purchasePrice: number): number {
+  if (loanAmount <= 0 || purchasePrice <= 0) return 0
+  const lvr = (loanAmount / purchasePrice) * 100
+  if (lvr <= 80) return 0
+  if (lvr <= 85) return Math.round(loanAmount * 0.005)
+  if (lvr <= 90) return Math.round(loanAmount * 0.015)
+  if (lvr <= 95) return Math.round(loanAmount * 0.03)
+  return Math.round(loanAmount * 0.04)
+}
+
+export function calcStampDuty(
+  purchasePrice: number,
+  state: string,
+  firstHomeBuyer: boolean
+): number {
+  if (purchasePrice <= 0) return 0
+
+  function progressive(price: number, tiers: [number, number][]): number {
+    let duty = 0
+    let prev = 0
+    for (const [upper, rate] of tiers) {
+      if (price <= prev) break
+      duty += (Math.min(price, upper) - prev) * (rate / 100)
+      if (price <= upper) break
+      prev = upper
+    }
+    return duty
+  }
+
+  switch (state) {
+    case 'NSW': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [16000, 1.25],
+          [35000, 1.5],
+          [93000, 1.75],
+          [351000, 3.5],
+          [1168000, 4.5],
+          [3000000, 5.5],
+          [Infinity, 7],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      if (purchasePrice <= 800000) return 0
+      if (purchasePrice <= 1000000) {
+        const full = standard(purchasePrice)
+        return Math.round(full * (1 - (1000000 - purchasePrice) / 200000))
+      }
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'VIC': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [25000, 1.4],
+          [130000, 2.4],
+          [960000, 6],
+          [Infinity, 5.5],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      if (purchasePrice <= 600000) return 0
+      if (purchasePrice < 750000) {
+        const full = standard(purchasePrice)
+        return Math.round(full * (1 - (750000 - purchasePrice) / 150000))
+      }
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'QLD': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [5000, 0],
+          [75000, 1.5],
+          [540000, 3.5],
+          [1000000, 4.5],
+          [Infinity, 5.75],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      if (purchasePrice <= 700000) return 0
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'WA': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [120000, 1.9],
+          [150000, 2.85],
+          [360000, 3.8],
+          [725000, 4.75],
+          [Infinity, 5.15],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      if (purchasePrice <= 430000) return 0
+      if (purchasePrice <= 530000) {
+        const full = standard(purchasePrice)
+        return Math.round(full * (1 - (530000 - purchasePrice) / 100000))
+      }
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'SA': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [12000, 1],
+          [30000, 2],
+          [50000, 3],
+          [100000, 3.5],
+          [200000, 4],
+          [250000, 4.25],
+          [300000, 4.75],
+          [Infinity, 5],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      // SA: no duty for new homes ≤ $650k, conservative established threshold $500k
+      if (purchasePrice <= 500000) return 0
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'TAS': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [3000, 0],
+          [25000, 1.75],
+          [75000, 2.25],
+          [200000, 3.5],
+          [375000, 4],
+          [725000, 4.25],
+          [Infinity, 4.5],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      if (purchasePrice <= 600000) return Math.round(standard(purchasePrice) * 0.5)
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'ACT': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [260000, 0],
+          [300000, 0.6],
+          [500000, 2.2],
+          [750000, 3.4],
+          [1000000, 4.32],
+          [1455000, 5.9],
+          [Infinity, 6.4],
+        ])
+      if (!firstHomeBuyer) return Math.round(standard(purchasePrice))
+      if (purchasePrice <= 600000) return 0
+      return Math.round(standard(purchasePrice))
+    }
+
+    case 'NT': {
+      const standard = (p: number) =>
+        progressive(p, [
+          [525000, 3],
+          [3000000, 4.95],
+          [Infinity, 5.75],
+        ])
+      return Math.round(standard(purchasePrice))
+    }
+
+    default:
+      return 0
+  }
+}

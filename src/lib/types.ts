@@ -63,6 +63,17 @@ export type NetworthData = {
   months: Record<string, Record<string, string>> // "YYYY-MM" -> { entryId -> amount }
 }
 
+export type HomeAffordabilityData = {
+  annualIncome: string
+  monthlyCommitments: string
+  deposit: string
+  interestRate: string
+  loanTerm: string
+  repaymentType: string
+  ausState: string
+  firstHomeBuyer: boolean
+}
+
 export type AppData = {
   version: 1
   storageMode: StorageMode
@@ -75,4 +86,5 @@ export type AppData = {
   debtRows: DebtRow[]
   debtExtraPayment: string
   networth: NetworthData
+  homeAffordability: HomeAffordabilityData
 }

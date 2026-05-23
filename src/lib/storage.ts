@@ -1,5 +1,5 @@
 import { supabase } from './supabase'
-import type { AppData, BudgetCategory, EmergencyFundData } from './types'
+import type { AppData, BudgetCategory, EmergencyFundData, HomeAffordabilityData } from './types'
 
 export class StorageFullError extends Error {
   constructor() {
@@ -71,6 +71,17 @@ const SEED_EMERGENCY_FUND: EmergencyFundData = {
   })(),
 }
 
+const DEFAULT_HOME_AFFORDABILITY: HomeAffordabilityData = {
+  annualIncome: '',
+  monthlyCommitments: '',
+  deposit: '',
+  interestRate: '',
+  loanTerm: '30',
+  repaymentType: 'pi',
+  ausState: 'NSW',
+  firstHomeBuyer: false,
+}
+
 export const DEFAULT_APP_DATA: AppData = {
   version: 1,
   storageMode: 'local',
@@ -87,6 +98,7 @@ export const DEFAULT_APP_DATA: AppData = {
     liabilities: [],
     months: {},
   },
+  homeAffordability: DEFAULT_HOME_AFFORDABILITY,
 }
 
 export class LocalStorageAdapter implements StorageAdapter {
@@ -101,6 +113,10 @@ export class LocalStorageAdapter implements StorageAdapter {
         networth: {
           ...DEFAULT_APP_DATA.networth,
           ...(parsed.networth ?? {}),
+        },
+        homeAffordability: {
+          ...DEFAULT_APP_DATA.homeAffordability,
+          ...(parsed.homeAffordability ?? {}),
         },
       }
     } catch {
@@ -152,6 +168,10 @@ export class AccountStorageAdapter implements StorageAdapter {
       networth: {
         ...DEFAULT_APP_DATA.networth,
         ...(parsed.networth ?? {}),
+      },
+      homeAffordability: {
+        ...DEFAULT_APP_DATA.homeAffordability,
+        ...(parsed.homeAffordability ?? {}),
       },
     }
   }
