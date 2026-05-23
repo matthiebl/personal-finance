@@ -135,3 +135,31 @@ export function SectionHeading({ children }: { children: ReactNode }) {
     </p>
   )
 }
+
+export function TabBar<T extends string>({
+  tabs,
+  active,
+  onChange,
+}: {
+  tabs: { id: T; label: string }[]
+  active: T
+  onChange: (t: T) => void
+}) {
+  return (
+    <div className="flex gap-1 mb-8 overflow-x-auto border-b border-gray-200 dark:border-gray-800">
+      {tabs.map((t) => (
+        <button
+          key={t.id}
+          onClick={() => onChange(t.id)}
+          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px shrink-0 ${
+            active === t.id
+              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
+              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
+          }`}
+        >
+          {t.label}
+        </button>
+      ))}
+    </div>
+  )
+}

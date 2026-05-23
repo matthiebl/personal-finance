@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { PageHeader, SectionHeading } from '../components/layout'
+import { PageHeader, SectionHeading, TabBar } from '../components/layout'
 import { useAppData } from '../context/useAppData'
 import { useAuth } from '../context/useAuth'
 import type { BudgetCategory } from '../lib/types'
@@ -35,31 +35,6 @@ type PendingDelete = {
 type Tab = 'account' | 'categories' | 'data'
 
 // ─── Tab bar ─────────────────────────────────────────────────────────────────
-
-function TabBar({ active, onChange }: { active: Tab; onChange: (t: Tab) => void }) {
-  const tabs: { id: Tab; label: string }[] = [
-    { id: 'account', label: 'Account' },
-    { id: 'categories', label: 'Categories' },
-    { id: 'data', label: 'Data' },
-  ]
-  return (
-    <div className="flex gap-1 mb-8 border-b border-gray-200 dark:border-gray-800">
-      {tabs.map((t) => (
-        <button
-          key={t.id}
-          onClick={() => onChange(t.id)}
-          className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
-            active === t.id
-              ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
-              : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200'
-          }`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
-  )
-}
 
 // ─── Account tab ─────────────────────────────────────────────────────────────
 
@@ -1029,7 +1004,15 @@ export default function Settings() {
   return (
     <div className="max-w-2xl">
       <PageHeader title="Settings" subtitle="Manage your account, categories, and data." />
-      <TabBar active={tab} onChange={setTab} />
+      <TabBar
+        tabs={[
+          { id: 'account', label: 'Account' },
+          { id: 'categories', label: 'Categories' },
+          { id: 'data', label: 'Data' },
+        ]}
+        active={tab}
+        onChange={setTab}
+      />
       {tab === 'account' && <AccountTab />}
       {tab === 'categories' && <CategoriesTab />}
       {tab === 'data' && <DataTab />}

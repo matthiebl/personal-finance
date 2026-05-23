@@ -9,7 +9,7 @@
 ## Medium priority — features that complete existing pages
 
 - [x] **Overview year picker** — let the user switch between years (currently only shows current year's data)
-- [ ] **Calculators** - make each calculator have their own subtab on the calculators page - should include relevant charts for visualisation
+- [x] **Calculators** - make each calculator have their own subtab on the calculators page - should include relevant charts for visualisation
 - [ ] **CSV Import** - allow importing data from a csv. Headers must include: "Time,Payee,Category,Tags,Total (AUD)"
 - [ ] **Up Bank Import** - once authenticated allow importing data through Up API
 - [ ] **Auto Categorise** - for authenticated users allow import to app transformation rules
