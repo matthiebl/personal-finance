@@ -116,7 +116,9 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-6 pb-5 border-b border-gray-200 dark:border-gray-800">
-      <div className={actions ? 'flex items-end justify-between' : ''}>
+      <div
+        className={actions ? 'flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between' : ''}
+      >
         <div>
           <h1 className="text-2xl font-bold mb-1">{title}</h1>
           {subtitle && <p className="text-sm text-gray-500 dark:text-gray-400">{subtitle}</p>}
