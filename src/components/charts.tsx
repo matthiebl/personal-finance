@@ -709,11 +709,13 @@ export function ExpandableChart({
   height = 260,
   expandedHeight = 480,
   renderChart,
+  toolbar,
 }: {
   title: string
   height?: number
   expandedHeight?: number
   renderChart: (height: number) => ReactNode
+  toolbar?: ReactNode
 }) {
   const [expanded, setExpanded] = useState(false)
   return (
@@ -735,10 +737,11 @@ export function ExpandableChart({
           <path d="M1 5V1h4M9 1h4v4M13 9v4H9M5 13H1V9" />
         </svg>
       </button>
+      {toolbar && <div className="mb-3 pr-6">{toolbar}</div>}
       {renderChart(height)}
       {expanded && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-6 xl:p-24"
+          className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center sm:p-6 xl:p-24"
           onClick={() => setExpanded(false)}
         >
           <div
@@ -1261,7 +1264,7 @@ export function CashFlowSankeyChart({
         nodePadding={12}
         nodeWidth={12}
         iterations={0}
-        margin={{ top: 10, right: 160, left: 160, bottom: 10 }}
+        margin={{ top: 15, right: 15, left: 15, bottom: 15 }}
       />
     </ResponsiveContainer>
   )

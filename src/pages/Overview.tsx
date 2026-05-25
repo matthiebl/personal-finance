@@ -710,48 +710,50 @@ export default function Overview() {
         />
       </div>
 
-      {/* Stacked spending breakdown */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between mb-3">
+      {/* Stacked spending breakdown + Cash flow Sankey — side by side on large screens */}
+      <div className="grid xl:grid-cols-2 items-start gap-6 mb-8">
+        <div>
           <SectionHeading>Spending by Type</SectionHeading>
-          <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
-            {[
-              { label: 'Needs', color: '#6366f1' },
-              { label: 'Wants', color: '#8b5cf6' },
-              { label: 'Debt', color: '#f97316' },
-              { label: 'Savings', color: '#10b981' },
-            ].map((s) => (
-              <span key={s.label} className="flex items-center gap-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
-                {s.label}
-              </span>
-            ))}
-          </div>
+          <ExpandableChart
+            title="Spending by Type"
+            height={320}
+            toolbar={
+              <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-400">
+                {[
+                  { label: 'Needs', color: '#6366f1' },
+                  { label: 'Wants', color: '#8b5cf6' },
+                  { label: 'Debt', color: '#f97316' },
+                  { label: 'Savings', color: '#10b981' },
+                ].map((s) => (
+                  <span key={s.label} className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: s.color }} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+            }
+            renderChart={(h) => <MonthlyStackedChart data={monthlyBreakdownData} height={h} />}
+          />
         </div>
-        <ExpandableChart
-          title="Spending by Type"
-          renderChart={(h) => <MonthlyStackedChart data={monthlyBreakdownData} height={h} />}
-        />
-      </div>
 
-      {/* Cash flow Sankey */}
-      <div className="mb-8">
-        <SectionHeading>Cash Flow</SectionHeading>
-        <ExpandableChart
-          title="Cash Flow"
-          height={400}
-          expandedHeight={580}
-          renderChart={(h) => (
-            <CashFlowSankeyChart
-              incomeCats={sortedCats.filter((c) => c.section === 'income')}
-              fixedCats={sortedCats.filter((c) => c.section === 'fixed')}
-              variableCats={sortedCats.filter((c) => c.section === 'variable')}
-              savingsCats={sortedCats.filter((c) => c.section === 'savings')}
-              actuals={annualCategoryTotals}
-              height={h}
-            />
-          )}
-        />
+        <div>
+          <SectionHeading>Cash Flow</SectionHeading>
+          <ExpandableChart
+            title="Cash Flow"
+            height={348}
+            expandedHeight={580}
+            renderChart={(h) => (
+              <CashFlowSankeyChart
+                incomeCats={sortedCats.filter((c) => c.section === 'income')}
+                fixedCats={sortedCats.filter((c) => c.section === 'fixed')}
+                variableCats={sortedCats.filter((c) => c.section === 'variable')}
+                savingsCats={sortedCats.filter((c) => c.section === 'savings')}
+                actuals={annualCategoryTotals}
+                height={h}
+              />
+            )}
+          />
+        </div>
       </div>
 
       {/* Average spending by type */}
