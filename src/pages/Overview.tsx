@@ -465,7 +465,7 @@ export default function Overview() {
     if (viewMode === 'rolling12') {
       const now = new Date()
       return Array.from({ length: 12 }, (_, i) => {
-        const d = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1)
+        const d = new Date(now.getFullYear(), now.getMonth() - 12 + i, 1)
         return {
           year: String(d.getFullYear()),
           monthKey: String(d.getMonth() + 1).padStart(2, '0'),

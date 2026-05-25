@@ -502,11 +502,12 @@ export default function MonthlyData() {
   } = useAppData()
 
   const now = new Date()
+  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const [searchParams, setSearchParams] = useSearchParams()
-  const selectedYear = searchParams.get('year') ?? String(now.getFullYear())
+  const selectedYear = searchParams.get('year') ?? String(prevMonth.getFullYear())
   const monthParam = searchParams.get('month')?.toLowerCase()
   const monthParamIdx = MONTHS.findIndex((m) => m.slice(0, 3).toLowerCase() === monthParam)
-  const selectedMonthIdx = monthParamIdx !== -1 ? monthParamIdx : now.getMonth()
+  const selectedMonthIdx = monthParamIdx !== -1 ? monthParamIdx : prevMonth.getMonth()
   const monthStr = String(selectedMonthIdx + 1).padStart(2, '0')
 
   function setYear(delta: number) {
