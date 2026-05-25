@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { DonutChart } from '../components/charts'
+import { CashFlowSankeyChart, DonutChart, ExpandableChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import type { TxSuggestion } from '../components/inputs'
 import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
@@ -757,9 +757,9 @@ export default function MonthlyData() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-6 mb-8">
-        <div>
+        <div className="flex flex-col">
           <SectionHeading>Budget vs Actual</SectionHeading>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
             <div className="flex items-center gap-4 mb-3">
               <div className="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
                 <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: '#6366f1' }} />
@@ -774,9 +774,9 @@ export default function MonthlyData() {
           </div>
         </div>
 
-        <div>
+        <div className="flex flex-col">
           <SectionHeading>Spending Breakdown</SectionHeading>
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
+          <div className="flex-1 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
             <DonutChart
               segments={donutSegments}
               height={160}
@@ -804,6 +804,26 @@ export default function MonthlyData() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Cash flow Sankey */}
+      <div className="mb-8">
+        <SectionHeading>Cash Flow</SectionHeading>
+        <ExpandableChart
+          title="Cash Flow"
+          height={400}
+          expandedHeight={580}
+          renderChart={(h) => (
+            <CashFlowSankeyChart
+              incomeCats={incomeCats}
+              fixedCats={fixedCats}
+              variableCats={varCats}
+              savingsCats={savingsCats}
+              actuals={actuals}
+              height={h}
+            />
+          )}
+        />
       </div>
 
       {/* Budget tables — single column below 2xl */}

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { DonutSegment, StackedDatum, TrendDatum } from '../components/charts'
 import {
+  CashFlowSankeyChart,
   DonutChart,
   ExpandableChart,
   MonthlyStackedChart,
@@ -730,6 +731,26 @@ export default function Overview() {
         <ExpandableChart
           title="Spending by Type"
           renderChart={(h) => <MonthlyStackedChart data={monthlyBreakdownData} height={h} />}
+        />
+      </div>
+
+      {/* Cash flow Sankey */}
+      <div className="mb-8">
+        <SectionHeading>Cash Flow</SectionHeading>
+        <ExpandableChart
+          title="Cash Flow"
+          height={400}
+          expandedHeight={580}
+          renderChart={(h) => (
+            <CashFlowSankeyChart
+              incomeCats={sortedCats.filter((c) => c.section === 'income')}
+              fixedCats={sortedCats.filter((c) => c.section === 'fixed')}
+              variableCats={sortedCats.filter((c) => c.section === 'variable')}
+              savingsCats={sortedCats.filter((c) => c.section === 'savings')}
+              actuals={annualCategoryTotals}
+              height={h}
+            />
+          )}
         />
       </div>
 

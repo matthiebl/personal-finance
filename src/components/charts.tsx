@@ -12,12 +12,14 @@ import {
   PieChart,
   ReferenceLine,
   ResponsiveContainer,
+  Sankey,
   Tooltip,
   XAxis,
   YAxis,
 } from 'recharts'
 import type { PayoffPeriodDatum } from '../lib/finance'
 import { fmt, fmtAxis } from '../lib/finance'
+import type { BudgetCategory } from '../lib/types'
 
 export type DonutSegment = { label: string; value: number; color: string }
 
@@ -945,6 +947,322 @@ export function NetworthStackedChart({
           dot={false}
         />
       </ComposedChart>
+    </ResponsiveContainer>
+  )
+}
+
+// ─── Cash Flow Sankey Chart ───────────────────────────────────────────────────
+
+type CashFlowNode = { name: string; color: string }
+type CashFlowLink = { source: number; target: number; value: number }
+
+type SankeyNodePayload = CashFlowNode & { value: number; depth: number }
+type SankeyLinkPayload = { source: SankeyNodePayload; target: SankeyNodePayload; value: number }
+
+type SankeyNodeRendererProps = {
+  x?: number
+  y?: number
+  width?: number
+  height?: number
+  index?: number
+  payload?: SankeyNodePayload
+  containerWidth?: number
+}
+
+type SankeyLinkRendererProps = {
+  sourceX?: number
+  sourceY?: number
+  sourceControlX?: number
+  targetX?: number
+  targetY?: number
+  targetControlX?: number
+  linkWidth?: number
+  payload?: SankeyLinkPayload
+}
+
+// Categories below this fraction of their section total, or beyond the top-N, are grouped into "Other"
+const SMALL_CAT_THRESHOLD = 0.1
+const MAX_CATS_PER_SECTION = 4
+
+function SankeyNodeRenderer({
+  x = 0,
+  y = 0,
+  width = 0,
+  height = 0,
+  payload,
+}: SankeyNodeRendererProps) {
+  const depth = (payload as unknown as { depth?: number })?.depth ?? 0
+  const color = payload?.color ?? '#9ca3af'
+  const name = payload?.name ?? ''
+  const value = payload?.value ?? 0
+  const centerY = y + height / 2
+
+  // Depth-2 nodes (section groups + Surplus): label inside the rect
+  if (depth === 2) {
+    const shortName =
+      name === 'Fixed Expenses' ? 'Fixed' : name === 'Variable Expenses' ? 'Variable' : name
+    return (
+      <g>
+        <rect x={x} y={y} width={width} height={height} fill={color} fillOpacity={0.9} rx={2} />
+        {height >= 18 && (
+          <text
+            x={x + width / 2}
+            y={centerY}
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontSize={9}
+            fontWeight={500}
+            fill="white"
+          >
+            {shortName}
+          </text>
+        )}
+      </g>
+    )
+  }
+
+  // All other nodes: external label
+  // depth 0 (income sources) and depth 1 (Total Income): label to the right
+  // depth 3 (individual cats): label to the left
+  const isRight = depth >= 3
+  const labelX = isRight ? x - 8 : x + width + 8
+  const anchor = isRight ? 'end' : 'start'
+
+  return (
+    <g>
+      <rect x={x} y={y} width={width} height={height} fill={color} fillOpacity={0.85} rx={2} />
+      {height > 6 && (
+        <text
+          x={labelX}
+          y={height < 22 ? centerY : centerY - 7}
+          textAnchor={anchor}
+          fontSize={10}
+          fill="#6b7280"
+        >
+          {name}
+        </text>
+      )}
+      {height >= 22 && (
+        <text x={labelX} y={centerY + 7} textAnchor={anchor} fontSize={9} fill="#9ca3af">
+          {fmt(value)}
+        </text>
+      )}
+    </g>
+  )
+}
+
+function SankeyLinkRenderer({
+  sourceX = 0,
+  sourceY = 0,
+  sourceControlX = 0,
+  targetX = 0,
+  targetY = 0,
+  targetControlX = 0,
+  linkWidth = 0,
+  payload,
+}: SankeyLinkRendererProps) {
+  const color = payload?.source?.color ?? '#9ca3af'
+  const half = linkWidth / 2
+  const d = `M${sourceX},${sourceY - half}
+    C${sourceControlX},${sourceY - half} ${targetControlX},${targetY - half} ${targetX},${targetY - half}
+    L${targetX},${targetY + half}
+    C${targetControlX},${targetY + half} ${sourceControlX},${sourceY + half} ${sourceX},${sourceY + half}
+    Z`
+  return <path d={d} fill={color} fillOpacity={0.18} stroke="none" />
+}
+
+export function CashFlowSankeyChart({
+  incomeCats,
+  fixedCats,
+  variableCats,
+  savingsCats,
+  actuals,
+  height = 400,
+}: {
+  incomeCats: BudgetCategory[]
+  fixedCats: BudgetCategory[]
+  variableCats: BudgetCategory[]
+  savingsCats: BudgetCategory[]
+  actuals: Record<string, number>
+  height?: number
+}) {
+  const sankeyData = useMemo(() => {
+    const activeIncome = incomeCats.filter((c) => (actuals[c.id] ?? 0) > 0)
+    const activeFixed = fixedCats.filter((c) => (actuals[c.id] ?? 0) > 0)
+    const activeVariable = variableCats.filter((c) => (actuals[c.id] ?? 0) > 0)
+    const activeSavings = savingsCats.filter((c) => (actuals[c.id] ?? 0) > 0)
+
+    const totalIncome = activeIncome.reduce((s, c) => s + (actuals[c.id] ?? 0), 0)
+    if (totalIncome === 0) return null
+
+    const totalFixed = activeFixed.reduce((s, c) => s + (actuals[c.id] ?? 0), 0)
+    const totalVariable = activeVariable.reduce((s, c) => s + (actuals[c.id] ?? 0), 0)
+    const totalSavingsAmt = activeSavings.reduce((s, c) => s + (actuals[c.id] ?? 0), 0)
+    const surplus = totalIncome - totalFixed - totalVariable - totalSavingsAmt
+
+    // Split each section: show top-N cats above threshold individually, group the rest into "Other"
+    function splitSection(cats: BudgetCategory[], sectionTotal: number) {
+      const threshold = sectionTotal * SMALL_CAT_THRESHOLD
+      const sorted = [...cats].sort((a, b) => (actuals[b.id] ?? 0) - (actuals[a.id] ?? 0))
+      const shown = sorted
+        .slice(0, MAX_CATS_PER_SECTION)
+        .filter((c) => (actuals[c.id] ?? 0) >= threshold)
+      const shownIds = new Set(shown.map((c) => c.id))
+      const otherTotal = cats
+        .filter((c) => !shownIds.has(c.id))
+        .reduce((s, c) => s + (actuals[c.id] ?? 0), 0)
+      return { shown, otherTotal }
+    }
+
+    const { shown: shownFixed, otherTotal: otherFixed } = splitSection(activeFixed, totalFixed)
+    const { shown: shownVariable, otherTotal: otherVariable } = splitSection(
+      activeVariable,
+      totalVariable
+    )
+    const { shown: shownSavings, otherTotal: otherSavings } = splitSection(
+      activeSavings,
+      totalSavingsAmt
+    )
+
+    // Build node index counters
+    let idx = 0
+    const incomeStart = idx
+    idx += activeIncome.length
+    const centreIdx = idx++
+
+    let fixedGroupIdx = -1
+    if (totalFixed > 0) fixedGroupIdx = idx++
+    let variableGroupIdx = -1
+    if (totalVariable > 0) variableGroupIdx = idx++
+    let savingsGroupIdx = -1
+    if (totalSavingsAmt > 0) savingsGroupIdx = idx++
+
+    const fixedCatStart = idx
+    idx += shownFixed.length + (otherFixed > 0 ? 1 : 0)
+    const variableCatStart = idx
+    idx += shownVariable.length + (otherVariable > 0 ? 1 : 0)
+    const savingsCatStart = idx
+    idx += shownSavings.length + (otherSavings > 0 ? 1 : 0)
+
+    const surplusIdx = surplus > 0 ? idx : -1
+
+    // Nodes — order must exactly match the index counters above
+    const nodes: CashFlowNode[] = [
+      ...activeIncome.map((c) => ({ name: c.label, color: '#10b981' })),
+      { name: 'Total Income', color: '#059669' },
+      ...(totalFixed > 0 ? [{ name: 'Fixed Expenses', color: '#6366f1' }] : []),
+      ...(totalVariable > 0 ? [{ name: 'Variable Expenses', color: '#8b5cf6' }] : []),
+      ...(totalSavingsAmt > 0 ? [{ name: 'Savings', color: '#14b8a6' }] : []),
+      ...shownFixed.map((c) => ({ name: c.label, color: '#818cf8' })),
+      ...(otherFixed > 0 ? [{ name: 'Other Fixed', color: '#a5b4fc' }] : []),
+      ...shownVariable.map((c) => ({ name: c.label, color: '#a78bfa' })),
+      ...(otherVariable > 0 ? [{ name: 'Other Variable', color: '#c4b5fd' }] : []),
+      ...shownSavings.map((c) => ({ name: c.label, color: '#2dd4bf' })),
+      ...(otherSavings > 0 ? [{ name: 'Other Savings', color: '#5eead4' }] : []),
+      ...(surplus > 0 ? [{ name: 'Surplus', color: '#22c55e' }] : []),
+    ]
+
+    const links: CashFlowLink[] = [
+      // Income sources → Total Income
+      ...activeIncome.map((c, i) => ({
+        source: incomeStart + i,
+        target: centreIdx,
+        value: actuals[c.id] ?? 0,
+      })),
+      // Total Income → section groups (+ surplus directly)
+      ...(fixedGroupIdx >= 0
+        ? [{ source: centreIdx, target: fixedGroupIdx, value: totalFixed }]
+        : []),
+      ...(variableGroupIdx >= 0
+        ? [{ source: centreIdx, target: variableGroupIdx, value: totalVariable }]
+        : []),
+      ...(savingsGroupIdx >= 0
+        ? [{ source: centreIdx, target: savingsGroupIdx, value: totalSavingsAmt }]
+        : []),
+      ...(surplusIdx >= 0 ? [{ source: centreIdx, target: surplusIdx, value: surplus }] : []),
+      // Fixed group → individual fixed cats
+      ...(fixedGroupIdx >= 0
+        ? [
+            ...shownFixed.map((c, i) => ({
+              source: fixedGroupIdx,
+              target: fixedCatStart + i,
+              value: actuals[c.id] ?? 0,
+            })),
+            ...(otherFixed > 0
+              ? [
+                  {
+                    source: fixedGroupIdx,
+                    target: fixedCatStart + shownFixed.length,
+                    value: otherFixed,
+                  },
+                ]
+              : []),
+          ]
+        : []),
+      // Variable group → individual variable cats
+      ...(variableGroupIdx >= 0
+        ? [
+            ...shownVariable.map((c, i) => ({
+              source: variableGroupIdx,
+              target: variableCatStart + i,
+              value: actuals[c.id] ?? 0,
+            })),
+            ...(otherVariable > 0
+              ? [
+                  {
+                    source: variableGroupIdx,
+                    target: variableCatStart + shownVariable.length,
+                    value: otherVariable,
+                  },
+                ]
+              : []),
+          ]
+        : []),
+      // Savings group → individual savings cats
+      ...(savingsGroupIdx >= 0
+        ? [
+            ...shownSavings.map((c, i) => ({
+              source: savingsGroupIdx,
+              target: savingsCatStart + i,
+              value: actuals[c.id] ?? 0,
+            })),
+            ...(otherSavings > 0
+              ? [
+                  {
+                    source: savingsGroupIdx,
+                    target: savingsCatStart + shownSavings.length,
+                    value: otherSavings,
+                  },
+                ]
+              : []),
+          ]
+        : []),
+    ]
+
+    return { nodes, links }
+  }, [incomeCats, fixedCats, variableCats, savingsCats, actuals])
+
+  if (!sankeyData) {
+    return (
+      <div className="flex items-center justify-center" style={{ height }}>
+        <p className="text-xs text-gray-400 dark:text-gray-600">
+          Add income and expense transactions to see cash flow
+        </p>
+      </div>
+    )
+  }
+
+  return (
+    <ResponsiveContainer width="100%" height={height}>
+      <Sankey
+        data={sankeyData}
+        node={(props) => <SankeyNodeRenderer {...(props as unknown as SankeyNodeRendererProps)} />}
+        link={(props) => <SankeyLinkRenderer {...(props as unknown as SankeyLinkRendererProps)} />}
+        nodePadding={12}
+        nodeWidth={12}
+        iterations={0}
+        margin={{ top: 10, right: 160, left: 160, bottom: 10 }}
+      />
     </ResponsiveContainer>
   )
 }
