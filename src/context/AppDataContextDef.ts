@@ -17,7 +17,7 @@ export type AppDataContextValue = {
   data: AppData
   loaded: boolean
 
-  addCategory: (section: BudgetCategory['section'], defaultExpenseType?: ExpenseType) => void
+  addCategory: (section: BudgetCategory['section'], defaultExpenseType?: ExpenseType) => string
   updateCategory: (id: string, patch: Partial<Omit<BudgetCategory, 'id'>>) => void
   removeCategory: (id: string) => void
   reorderCategories: (orderedIds: string[]) => void

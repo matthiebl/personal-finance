@@ -251,12 +251,35 @@ function TransactionTable({
         <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Transactions
         </p>
-        <button
-          onClick={onCondense}
-          className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1 transition-colors"
-        >
-          Condense
-        </button>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={onCondense}
+            className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1 transition-colors"
+          >
+            Condense
+          </button>
+          <div className="relative group">
+            <svg
+              className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 cursor-default"
+              viewBox="0 0 16 16"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <circle cx="8" cy="8" r="6.5" />
+              <line x1="8" y1="7" x2="8" y2="11" />
+              <circle cx="8" cy="5" r="0.5" fill="currentColor" stroke="none" />
+            </svg>
+            <div className="absolute right-0 top-full mt-1.5 w-56 z-20 invisible group-hover:visible opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+              <div className="bg-gray-800 dark:bg-gray-700 text-gray-100 text-xs rounded-lg px-3 py-2 shadow-lg leading-relaxed">
+                Merges transactions with the same category, description, and tags into one entry.
+                Groups that net to zero are removed. This cannot be undone.
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
       <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-x-auto">
         <table className="w-full min-w-max text-sm border-collapse">

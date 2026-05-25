@@ -126,11 +126,15 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
 
   // ─── Category mutations ───────────────────────────────────────────────────
 
-  function addCategory(section: BudgetCategory['section'], defaultExpenseType?: ExpenseType) {
+  function addCategory(
+    section: BudgetCategory['section'],
+    defaultExpenseType?: ExpenseType
+  ): string {
+    const id = crypto.randomUUID()
     setData((prev) => {
       const maxOrder = prev.budget.categories.reduce((m, c) => Math.max(m, c.order), -1)
       const cat: BudgetCategory = {
-        id: crypto.randomUUID(),
+        id,
         label: '',
         section,
         expenseType: defaultExpenseType,
@@ -138,6 +142,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
       }
       return { ...prev, budget: { ...prev.budget, categories: [...prev.budget.categories, cat] } }
     })
+    return id
   }
 
   function updateCategory(id: string, patch: Partial<Omit<BudgetCategory, 'id'>>) {

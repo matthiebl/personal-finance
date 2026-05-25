@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { PageHeader, SectionHeading, TabBar } from '../components/layout'
 import { useAppData } from '../context/useAppData'
 import { useAuth } from '../context/useAuth'
@@ -611,7 +612,7 @@ function AccountTab() {
 // ─── Categories tab ───────────────────────────────────────────────────────────
 
 function CategoriesTab() {
-  const { data, removeCategory, reorderCategories } = useAppData()
+  const { data, addCategory, updateCategory, removeCategory, reorderCategories } = useAppData()
 
   const sortedCats = useMemo(
     () => [...data.budget.categories].sort((a, b) => a.order - b.order),
@@ -621,6 +622,21 @@ function CategoriesTab() {
   const [pendingDelete, setPendingDelete] = useState<PendingDelete | null>(null)
   const [dragId, setDragId] = useState<string | null>(null)
   const [dragOverId, setDragOverId] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+
+  function handleAddCategory(section: BudgetCategory['section']) {
+    const id = addCategory(section)
+    setEditingId(id)
+    setEditLabel('')
+  }
+
+  function confirmEdit() {
+    if (!editingId) return
+    updateCategory(editingId, { label: editLabel.trim() })
+    setEditingId(null)
+    setEditLabel('')
+  }
 
   function countCategoryUsage(id: string) {
     let budgetCount = 0
@@ -667,7 +683,7 @@ function CategoriesTab() {
   return (
     <div>
       <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-        Drag to reorder. Changes apply across all months.
+        Click a name to rename. Drag to reorder. Changes apply across all months.
       </p>
       <div className="space-y-4">
         {SECTIONS.map((section) => {
@@ -678,12 +694,61 @@ function CategoriesTab() {
                 {SECTION_LABELS[section]}
               </p>
               <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl overflow-hidden divide-y divide-gray-100 dark:divide-gray-800">
-                {cats.length === 0 ? (
-                  <p className="px-4 py-3 text-sm text-gray-400 dark:text-gray-600">
-                    No categories
-                  </p>
-                ) : (
-                  cats.map((cat) => (
+                {cats.map((cat) =>
+                  editingId === cat.id ? (
+                    <div key={cat.id} className="flex items-center gap-3 px-4 py-2.5">
+                      <svg
+                        className="w-4 h-4 text-gray-300 dark:text-gray-700 shrink-0"
+                        viewBox="0 0 16 16"
+                        fill="currentColor"
+                      >
+                        <circle cx="5.5" cy="4" r="1.2" />
+                        <circle cx="5.5" cy="8" r="1.2" />
+                        <circle cx="5.5" cy="12" r="1.2" />
+                        <circle cx="10.5" cy="4" r="1.2" />
+                        <circle cx="10.5" cy="8" r="1.2" />
+                        <circle cx="10.5" cy="12" r="1.2" />
+                      </svg>
+                      <input
+                        autoFocus
+                        type="text"
+                        value={editLabel}
+                        onChange={(e) => setEditLabel(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') confirmEdit()
+                          if (e.key === 'Escape') {
+                            setEditingId(null)
+                            setEditLabel('')
+                          }
+                        }}
+                        onBlur={confirmEdit}
+                        placeholder="Category name"
+                        className="flex-1 text-sm border border-gray-300 dark:border-gray-700 rounded px-2 py-0.5 bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 focus:outline-none focus:ring-1 focus:ring-indigo-400"
+                      />
+                      <button
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => {
+                          setEditingId(null)
+                          setEditLabel('')
+                          handleDeleteClick(cat)
+                        }}
+                        className="shrink-0 text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-500 transition-colors"
+                        title="Delete category"
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        >
+                          <line x1="3" y1="3" x2="13" y2="13" />
+                          <line x1="13" y1="3" x2="3" y2="13" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
                     <div
                       key={cat.id}
                       draggable
@@ -717,11 +782,18 @@ function CategoriesTab() {
                         <circle cx="10.5" cy="8" r="1.2" />
                         <circle cx="10.5" cy="12" r="1.2" />
                       </svg>
-                      <span className="flex-1 text-sm text-gray-700 dark:text-gray-300 truncate">
+                      <button
+                        className="flex-1 text-left text-sm text-gray-700 dark:text-gray-300 truncate hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        onClick={() => {
+                          setEditingId(cat.id)
+                          setEditLabel(cat.label)
+                        }}
+                        title="Click to rename"
+                      >
                         {cat.label || (
                           <span className="text-gray-400 dark:text-gray-600 italic">Unnamed</span>
                         )}
-                      </span>
+                      </button>
                       <button
                         onClick={() => handleDeleteClick(cat)}
                         className="shrink-0 text-gray-300 dark:text-gray-700 hover:text-red-400 dark:hover:text-red-500 transition-colors"
@@ -740,8 +812,25 @@ function CategoriesTab() {
                         </svg>
                       </button>
                     </div>
-                  ))
+                  )
                 )}
+                <button
+                  onClick={() => handleAddCategory(section)}
+                  className="w-full flex items-center gap-2 px-4 py-2.5 text-xs text-gray-400 dark:text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/10 transition-colors"
+                >
+                  <svg
+                    className="w-3.5 h-3.5"
+                    viewBox="0 0 14 14"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                  >
+                    <line x1="7" y1="2" x2="7" y2="12" />
+                    <line x1="2" y1="7" x2="12" y2="7" />
+                  </svg>
+                  Add category
+                </button>
               </div>
             </div>
           )
@@ -929,8 +1018,8 @@ function DataTab() {
         <SectionHeading>Condense transactions</SectionHeading>
         <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl p-4">
           <p className="text-xs text-gray-400 dark:text-gray-500 mb-4">
-            Groups multiple transactions per category into one per month to reduce storage size.
-            This cannot be undone.
+            Merges transactions that share the same category, description, and tags into a single
+            entry. Groups that net to zero are removed entirely. This cannot be undone.
           </p>
           <div className="flex items-center gap-3">
             <select
@@ -1045,7 +1134,15 @@ function DataTab() {
 // ─── Settings page ────────────────────────────────────────────────────────────
 
 export default function Settings() {
-  const [tab, setTab] = useState<Tab>('account')
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  const hash = location.hash.slice(1)
+  const tab: Tab = hash === 'categories' || hash === 'data' ? hash : 'account'
+
+  function handleTabChange(t: Tab) {
+    navigate(`/settings#${t}`, { replace: true })
+  }
 
   return (
     <div className="max-w-2xl">
@@ -1057,7 +1154,7 @@ export default function Settings() {
           { id: 'data', label: 'Data' },
         ]}
         active={tab}
-        onChange={setTab}
+        onChange={handleTabChange}
       />
       {tab === 'account' && <AccountTab />}
       {tab === 'categories' && <CategoriesTab />}

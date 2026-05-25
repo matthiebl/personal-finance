@@ -8,8 +8,6 @@
 
 ## Medium priority — features that complete existing pages
 
-- [ ] **Welcome page onboarding flow** — guide the user to set up budget categories and their first monthly budget before landing on an empty dashboard
-
 ## Lower priority — data and app quality
 
 ## Completed
@@ -22,3 +20,4 @@
 - [x] **Export / Import** — download AppData as JSON and re-import it (useful as a backup before account mode exists)
 - [x] **Debt Snowball** — make debt rows addable/removable/editable (balance, min payment, rate); implement real snowball and avalanche payoff calculations; show per-debt estimated payoff date
 - [x] **Debt Snowball payoff timeline chart** — bar or line chart showing remaining balance per debt over time under the selected strategy
+- [x] **Welcome page onboarding flow** — guide the user to set up budget categories and their first monthly budget before landing on an empty dashboard
