@@ -1,5 +1,6 @@
 import type { InputHTMLAttributes } from 'react'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 
 export type TxSuggestion = {
   description: string
@@ -14,15 +15,19 @@ export function DescriptionAutocomplete({
   onSelect,
   suggestions,
   compact = false,
+  portal = false,
 }: {
   value: string
   onChange: (v: string) => void
   onSelect: (description: string, categoryId: string, tags: string) => void
   suggestions: TxSuggestion[]
   compact?: boolean
+  portal?: boolean
 }) {
   const [open, setOpen] = useState(false)
   const [highlightIdx, setHighlightIdx] = useState(-1)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0, width: 0 })
 
   const filtered = useMemo(() => {
     if (!value.trim()) return []
@@ -31,6 +36,13 @@ export function DescriptionAutocomplete({
   }, [value, suggestions])
 
   const showDropdown = open && filtered.length > 0
+
+  function measureInput() {
+    if (portal && inputRef.current) {
+      const rect = inputRef.current.getBoundingClientRect()
+      setDropdownPos({ top: rect.bottom + 4, left: rect.left, width: rect.width })
+    }
+  }
 
   function select(s: TxSuggestion) {
     onSelect(s.description, s.categoryId, s.tags ?? '')
@@ -61,57 +73,69 @@ export function DescriptionAutocomplete({
     }
   }
 
+  const dropdown = showDropdown ? (
+    <div
+      className={`z-9999 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 min-w-64 ${portal ? 'fixed' : 'absolute top-full left-0 right-0 mt-1'}`}
+      style={
+        portal
+          ? { top: dropdownPos.top, left: dropdownPos.left, width: dropdownPos.width }
+          : undefined
+      }
+    >
+      <p className="px-3 pt-2.5 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 select-none">
+        Suggestions
+      </p>
+      <ul className="pb-1.5">
+        {filtered.map((s, i) => (
+          <li
+            key={`${s.description}\0${s.categoryId}\0${s.tags ?? ''}`}
+            onMouseDown={(e) => {
+              e.preventDefault()
+              select(s)
+            }}
+            onMouseEnter={() => setHighlightIdx(i)}
+            className={`mx-1.5 px-2.5 py-2 rounded-lg cursor-pointer flex items-start gap-2.5 ${i === highlightIdx ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'}`}
+          >
+            <span className="mt-0.5 shrink-0 rounded text-center text-xs leading-4 font-medium bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 select-none px-1 py-0.5 whitespace-nowrap">
+              ⌘{i + 1}
+            </span>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
+                {s.description}
+              </p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
+                {s.categoryLabel}
+                {s.tags && <span className="ml-2 text-gray-300 dark:text-gray-600">{s.tags}</span>}
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  ) : null
+
   return (
     <div className="relative w-full">
       <input
+        ref={inputRef}
         type="text"
         placeholder="Description"
         value={value}
         onChange={(e) => {
           onChange(e.target.value)
+          measureInput()
           setOpen(true)
           setHighlightIdx(-1)
         }}
-        onFocus={() => setOpen(true)}
+        onFocus={() => {
+          measureInput()
+          setOpen(true)
+        }}
         onBlur={() => setOpen(false)}
         onKeyDown={handleKeyDown}
         className={`w-full border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 placeholder-gray-300 dark:placeholder-gray-700 focus:outline-none focus:ring-1 focus:ring-gray-400 dark:focus:ring-gray-600 ${compact ? 'px-2 py-1 text-sm' : 'px-2.5 py-1.5 text-sm'}`}
       />
-      {showDropdown && (
-        <div className="absolute top-full left-0 right-0 z-50 mt-1 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10 min-w-64">
-          <p className="px-3 pt-2.5 pb-1 text-xs font-semibold uppercase tracking-widest text-gray-400 dark:text-gray-500 select-none">
-            Suggestions
-          </p>
-          <ul className="pb-1.5">
-            {filtered.map((s, i) => (
-              <li
-                key={`${s.description}\0${s.categoryId}\0${s.tags ?? ''}`}
-                onMouseDown={(e) => {
-                  e.preventDefault()
-                  select(s)
-                }}
-                onMouseEnter={() => setHighlightIdx(i)}
-                className={`mx-1.5 px-2.5 py-2 rounded-lg cursor-pointer flex items-start gap-2.5 ${i === highlightIdx ? 'bg-gray-100 dark:bg-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700/60'}`}
-              >
-                <span className="mt-0.5 shrink-0 rounded text-center text-xs leading-4 font-medium bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 select-none px-1 py-0.5 whitespace-nowrap">
-                  ⌘{i + 1}
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-800 dark:text-gray-100 truncate">
-                    {s.description}
-                  </p>
-                  <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 truncate">
-                    {s.categoryLabel}
-                    {s.tags && (
-                      <span className="ml-2 text-gray-300 dark:text-gray-600">{s.tags}</span>
-                    )}
-                  </p>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {portal ? createPortal(dropdown, document.body) : dropdown}
     </div>
   )
 }

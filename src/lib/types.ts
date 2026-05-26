@@ -95,6 +95,22 @@ export type ImportRow = {
   selected: boolean
 }
 
+export type RuleMatchType = 'contains' | 'exact' | 'starts_with' | 'regex'
+
+export type ImportRule = {
+  id: string
+  familyId: string
+  createdAt: string
+  priority: number
+  matchType: RuleMatchType
+  matchValue: string
+  amountMin: string | null
+  amountMax: string | null
+  categoryId: string
+  tags: string
+  renameTo: string
+}
+
 export type ImportSession = {
   id: string
   familyId: string

@@ -4,7 +4,7 @@
 
 - [x] **CSV Import** - allow importing data from a csv
 - [ ] **Up Bank Import** - once authenticated allow importing data through Up API
-- [ ] **Auto Categorise** - for authenticated users allow import to app transformation rules
+- [x] **Auto Categorise** - for authenticated users allow import to app transformation rules
 
 ## Medium priority — features that complete existing pages
 

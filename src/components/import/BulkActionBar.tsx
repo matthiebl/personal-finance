@@ -8,6 +8,8 @@ type BulkActionBarProps = {
   onApplyTags: (tags: string) => void
   onApplyMonth: (month: string) => void
   onClearSelection: () => void
+  hasRules?: boolean
+  onApplyRules?: () => void
 }
 
 const SECTIONS: BudgetCategory['section'][] = ['income', 'fixed', 'variable', 'savings']
@@ -31,6 +33,8 @@ export function BulkActionBar({
   onApplyTags,
   onApplyMonth,
   onClearSelection,
+  hasRules,
+  onApplyRules,
 }: BulkActionBarProps) {
   const [bulkCategory, setBulkCategory] = useState('')
   const [bulkTags, setBulkTags] = useState('')
@@ -88,6 +92,15 @@ export function BulkActionBar({
           onChange={(e) => setBulkMonth(e.target.value)}
           className={inputClass}
         />
+
+        {hasRules && onApplyRules && (
+          <button
+            onClick={onApplyRules}
+            className="text-xs text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800 rounded px-2.5 py-1 transition-colors hover:bg-indigo-50 dark:hover:bg-indigo-950/30"
+          >
+            Apply rules
+          </button>
+        )}
 
         <button
           onClick={handleApply}

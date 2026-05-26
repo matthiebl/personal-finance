@@ -32,6 +32,20 @@ export type DbImportSession = {
   negate_amount: boolean
 }
 
+export type DbImportRule = {
+  id: string
+  family_id: string
+  created_at: string
+  priority: number
+  match_type: 'contains' | 'exact' | 'starts_with'
+  match_value: string
+  amount_min: string | null
+  amount_max: string | null
+  category_id: string
+  tags: string
+  rename_to: string
+}
+
 export type DbImportRow = {
   id: string
   session_id: string

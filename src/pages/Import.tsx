@@ -4,6 +4,7 @@ import { AdvancedTab } from '../components/import/AdvancedTab'
 import { EnrichedDataTab } from '../components/import/EnrichedDataTab'
 import { ImportUploader } from '../components/import/ImportUploader'
 import { RawDataTab } from '../components/import/RawDataTab'
+import { RulesTab } from '../components/import/RulesTab'
 import { PageHeader, SectionHeading, TabBar } from '../components/layout'
 import { useAppData } from '../context/useAppData'
 import { useAuth } from '../context/useAuth'
@@ -15,21 +16,26 @@ import {
   yearMonthFromDate,
 } from '../lib/csv'
 import { supabase } from '../lib/supabase'
+import type { DbImportRule } from '../lib/supabase'
+import { applyRulesToRow, applyRulesToRows } from '../lib/rules'
 import type { TxSuggestion } from '../components/inputs'
 import type {
   BudgetCategory,
   ImportColumnMap,
   ImportRow,
+  ImportRule,
   ImportSession,
+  RuleMatchType,
   Transaction,
 } from '../lib/types'
 
-type ImportTab = 'enriched' | 'raw' | 'advanced'
+type ImportTab = 'enriched' | 'raw' | 'advanced' | 'rules'
 
 const TABS: { id: ImportTab; label: string }[] = [
   { id: 'enriched', label: 'Enriched' },
   { id: 'raw', label: 'Raw Data' },
   { id: 'advanced', label: 'Advanced' },
+  { id: 'rules', label: 'Rules' },
 ]
 
 // ─── Auth gate ────────────────────────────────────────────────────────────────
@@ -94,6 +100,35 @@ function mapDbSession(db: Record<string, unknown>): ImportSession {
   }
 }
 
+function mapDbRule(db: DbImportRule): ImportRule {
+  return {
+    id: db.id,
+    familyId: db.family_id,
+    createdAt: db.created_at,
+    priority: db.priority,
+    matchType: db.match_type as RuleMatchType,
+    matchValue: db.match_value,
+    amountMin: db.amount_min,
+    amountMax: db.amount_max,
+    categoryId: db.category_id,
+    tags: db.tags,
+    renameTo: db.rename_to,
+  }
+}
+
+function ruleToDb(rule: Partial<Omit<ImportRule, 'id' | 'familyId' | 'createdAt'>>) {
+  const out: Record<string, unknown> = {}
+  if (rule.priority !== undefined) out.priority = rule.priority
+  if (rule.matchType !== undefined) out.match_type = rule.matchType
+  if (rule.matchValue !== undefined) out.match_value = rule.matchValue
+  if ('amountMin' in rule) out.amount_min = rule.amountMin
+  if ('amountMax' in rule) out.amount_max = rule.amountMax
+  if (rule.categoryId !== undefined) out.category_id = rule.categoryId
+  if (rule.tags !== undefined) out.tags = rule.tags
+  if (rule.renameTo !== undefined) out.rename_to = rule.renameTo
+  return out
+}
+
 function mapDbRow(db: Record<string, unknown>, selected = false): ImportRow {
   return {
     id: db.id as string,
@@ -146,6 +181,10 @@ function ImportPageContent({
   const [noHeaderWarning, setNoHeaderWarning] = useState(false)
   const [detectedDateFormat, setDetectedDateFormat] = useState<string | null>(null)
 
+  const [rules, setRules] = useState<ImportRule[]>([])
+  const [rulesLoading, setRulesLoading] = useState(true)
+  const [appliedRuleIds, setAppliedRuleIds] = useState<Record<string, string>>({})
+
   const [activeTab, setActiveTab] = useState<ImportTab>('enriched')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -154,16 +193,28 @@ function ImportPageContent({
 
   const rowSaveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  // Load existing session on mount
+  // Load existing session and rules on mount (in parallel)
   useEffect(() => {
     async function load() {
-      const { data: sessions } = await supabase
-        .from('import_sessions')
-        .select('*')
-        .eq('family_id', familyId)
-        .order('created_at', { ascending: false })
-        .limit(1)
+      const [sessionsResult, rulesResult] = await Promise.all([
+        supabase
+          .from('import_sessions')
+          .select('*')
+          .eq('family_id', familyId)
+          .order('created_at', { ascending: false })
+          .limit(1),
+        supabase
+          .from('import_rules')
+          .select('*')
+          .eq('family_id', familyId)
+          .order('priority', { ascending: true }),
+      ])
 
+      const loadedRules = (rulesResult.data ?? []).map((r) => mapDbRule(r as DbImportRule))
+      setRules(loadedRules)
+      setRulesLoading(false)
+
+      const sessions = sessionsResult.data
       if (sessions && sessions.length > 0) {
         const s = mapDbSession(sessions[0] as Record<string, unknown>)
         const { data: dbRows } = await supabase
@@ -264,9 +315,27 @@ function ImportPageContent({
       const importRows = (inserted ?? []).map((r) => mapDbRow(r as Record<string, unknown>))
 
       setSession(newSession)
-      setRows(importRows)
       setHeaders(csvHeaders)
       setActiveTab(noHeader ? 'advanced' : 'enriched')
+
+      // Apply rules to freshly uploaded rows
+      if (rules.length > 0) {
+        const { rows: enriched, matchedRules } = applyRulesToRows(importRows, rules, {
+          skipIfCategorized: true,
+        })
+        setAppliedRuleIds(matchedRules)
+        enriched.forEach((row, i) => {
+          if (row === importRows[i]) return
+          supabase
+            .from('import_rows')
+            .update({ category_id: row.categoryId, tags: row.tags, description: row.description })
+            .eq('id', row.id)
+            .then(() => {})
+        })
+        setRows(enriched)
+      } else {
+        setRows(importRows)
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed')
     } finally {
@@ -378,6 +447,54 @@ function ImportPageContent({
     )
   }
 
+  // ─── Rules CRUD ─────────────────────────────────────────────────────────────
+
+  async function handleAddRule(draft: Omit<ImportRule, 'id' | 'familyId' | 'createdAt'>) {
+    const { data, error: err } = await supabase
+      .from('import_rules')
+      .insert({ family_id: familyId, ...ruleToDb(draft) })
+      .select()
+      .single()
+    if (!err && data) {
+      setRules((prev) =>
+        [...prev, mapDbRule(data as DbImportRule)].sort((a, b) => a.priority - b.priority)
+      )
+    }
+  }
+
+  async function handleUpdateRule(
+    id: string,
+    patch: Partial<Omit<ImportRule, 'id' | 'familyId' | 'createdAt'>>
+  ) {
+    setRules((prev) =>
+      prev
+        .map((r) => (r.id === id ? { ...r, ...patch } : r))
+        .sort((a, b) => a.priority - b.priority)
+    )
+    await supabase.from('import_rules').update(ruleToDb(patch)).eq('id', id)
+  }
+
+  async function handleDeleteRule(id: string) {
+    setRules((prev) => prev.filter((r) => r.id !== id))
+    await supabase.from('import_rules').delete().eq('id', id)
+  }
+
+  // ─── Apply rules to selected rows ──────────────────────────────────────────
+
+  function handleApplyRulesToSelected() {
+    const sorted = [...rules].sort((a, b) => a.priority - b.priority)
+    const newMatches: Record<string, string> = {}
+    rows
+      .filter((r) => r.selected)
+      .forEach((row) => {
+        const result = applyRulesToRow(row, sorted)
+        if (!result) return
+        newMatches[row.id] = result.ruleId
+        handleRowChange(row.id, result.patch)
+      })
+    setAppliedRuleIds((prev) => ({ ...prev, ...newMatches }))
+  }
+
   // ─── Delete row ─────────────────────────────────────────────────────────────
 
   async function handleDeleteRow(id: string) {
@@ -479,6 +596,28 @@ function ImportPageContent({
       >
         Delete Import
       </button>
+      {rules.length > 0 && (
+        <button
+          onClick={() => {
+            const { rows: enriched, matchedRules } = applyRulesToRows(rows, rules, {
+              skipIfCategorized: false,
+            })
+            setAppliedRuleIds((prev) => ({ ...prev, ...matchedRules }))
+            enriched.forEach((row, i) => {
+              if (row !== rows[i])
+                handleRowChange(row.id, {
+                  categoryId: row.categoryId,
+                  tags: row.tags,
+                  description: row.description,
+                })
+            })
+          }}
+          disabled={busy}
+          className="px-3 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-40 transition-colors"
+        >
+          Apply rules
+        </button>
+      )}
       <button
         onClick={() => saveRows(rows.filter((r) => r.selected))}
         disabled={busy || selectedCount === 0}
@@ -553,6 +692,21 @@ function ImportPageContent({
               onToggleSelected={handleToggleSelected}
               onToggleSelectAll={handleToggleSelectAll}
               selectedCount={selectedCount}
+              rules={rules}
+              appliedRuleIds={appliedRuleIds}
+              onApplyRulesToSelected={handleApplyRulesToSelected}
+            />
+          )}
+
+          {activeTab === 'rules' && (
+            <RulesTab
+              rules={rules}
+              categories={categories}
+              suggestions={suggestions}
+              loading={rulesLoading}
+              onAdd={handleAddRule}
+              onUpdate={handleUpdateRule}
+              onDelete={handleDeleteRule}
             />
           )}
 
