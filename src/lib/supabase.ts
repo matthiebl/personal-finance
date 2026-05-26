@@ -19,3 +19,29 @@ export type DbUserProfile = {
   family_id: string | null
   created_at: string
 }
+
+export type DbImportSession = {
+  id: string
+  family_id: string
+  created_at: string
+  source: 'csv' | 'api'
+  filename: string | null
+  row_count: number
+  column_map: Record<string, string>
+  date_format: string
+  negate_amount: boolean
+}
+
+export type DbImportRow = {
+  id: string
+  session_id: string
+  family_id: string
+  row_index: number
+  raw_data: Record<string, string>
+  description: string
+  amount: string
+  category_id: string
+  tags: string
+  month_override: string | null
+  parsed_date: string | null
+}

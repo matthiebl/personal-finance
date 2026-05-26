@@ -2,7 +2,7 @@
 
 ## High priority — wire up stubs to real data
 
-- [ ] **CSV Import** - allow importing data from a csv. Headers must include: "Time,Payee,Category,Tags,Total (AUD)"
+- [x] **CSV Import** - allow importing data from a csv
 - [ ] **Up Bank Import** - once authenticated allow importing data through Up API
 - [ ] **Auto Categorise** - for authenticated users allow import to app transformation rules
 

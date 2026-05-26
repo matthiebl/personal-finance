@@ -75,6 +75,38 @@ export type HomeAffordabilityData = {
   firstHomeBuyer: boolean
 }
 
+export type ImportColumnMap = {
+  date: string
+  amount: string
+  description: string
+  tags: string
+}
+
+export type ImportRow = {
+  id: string
+  rowIndex: number
+  rawData: Record<string, string>
+  description: string
+  amount: string
+  categoryId: string
+  tags: string
+  monthOverride: string | null
+  parsedDate: string | null
+  selected: boolean
+}
+
+export type ImportSession = {
+  id: string
+  familyId: string
+  createdAt: string
+  source: 'csv' | 'api'
+  filename: string | null
+  rowCount: number
+  columnMap: ImportColumnMap
+  dateFormat: string
+  negateAmount: boolean
+}
+
 export type AppData = {
   version: 1
   storageMode: StorageMode

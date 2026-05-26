@@ -25,6 +25,7 @@ export type AppDataContextValue = {
   getBudgetMonth: (year: string, month: string) => BudgetMonth
   updateBudgeted: (year: string, month: string, categoryId: string, amount: string) => void
   addTransaction: (year: string, month: string) => void
+  insertTransaction: (year: string, month: string, tx: Transaction) => void
   updateTransaction: (year: string, month: string, id: string, patch: Partial<Transaction>) => void
   removeTransaction: (year: string, month: string, id: string) => void
   condenseTransactions: (year: string, month: string) => void

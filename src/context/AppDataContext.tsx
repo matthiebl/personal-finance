@@ -211,6 +211,13 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     })
   }
 
+  function insertTransaction(year: string, month: string, tx: Transaction) {
+    setData((prev) => {
+      const bm = getOrCreateMonth(prev, year, month)
+      return setMonth(prev, year, month, { ...bm, transactions: [...bm.transactions, tx] })
+    })
+  }
+
   function updateTransaction(year: string, month: string, id: string, patch: Partial<Transaction>) {
     setData((prev) => {
       const bm = getOrCreateMonth(prev, year, month)
@@ -445,6 +452,7 @@ export function AppDataProvider({ children }: { children: React.ReactNode }) {
     getBudgetMonth,
     updateBudgeted,
     addTransaction,
+    insertTransaction,
     updateTransaction,
     removeTransaction,
     condenseTransactions,
