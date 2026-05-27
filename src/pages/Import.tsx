@@ -35,7 +35,7 @@ import type {
 } from '../lib/types'
 
 type ImportTab = 'enriched' | 'raw' | 'advanced' | 'rules'
-type ImportSource = 'none' | 'csv' | 'api'
+type ImportSource = 'none' | 'picker' | 'csv' | 'api'
 
 const TABS_CSV: { id: ImportTab; label: string }[] = [
   { id: 'enriched', label: 'Enriched' },
@@ -157,6 +157,17 @@ function mapDbRow(db: Record<string, unknown>, selected = false): ImportRow {
   }
 }
 
+function formatSessionDate(isoString: string): string {
+  const date = new Date(isoString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
+  if (diffDays === 0) return 'Today'
+  if (diffDays === 1) return 'Yesterday'
+  if (diffDays < 7) return `${diffDays} days ago`
+  return date.toLocaleDateString()
+}
+
 function ImportPageContent({
   familyId,
   categories,
@@ -188,7 +199,8 @@ function ImportPageContent({
     return Array.from(seen.values())
   }, [data.budget.years, categories])
 
-  const [session, setSession] = useState<ImportSession | null>(null)
+  const [sessions, setSessions] = useState<ImportSession[]>([])
+  const [activeSessionId, setActiveSessionId] = useState<string | null>(null)
   const [rows, setRows] = useState<ImportRow[]>([])
   const [headers, setHeaders] = useState<string[]>([])
   const [noHeaderWarning, setNoHeaderWarning] = useState(false)
@@ -207,7 +219,10 @@ function ImportPageContent({
 
   const rowSaveTimers = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map())
 
-  // Load existing session and rules on mount (in parallel)
+  // Derived active session
+  const session = sessions.find((s) => s.id === activeSessionId) ?? null
+
+  // Load all sessions and rules on mount (in parallel)
   useEffect(() => {
     async function load() {
       const [sessionsResult, rulesResult] = await Promise.all([
@@ -215,8 +230,7 @@ function ImportPageContent({
           .from('import_sessions')
           .select('*')
           .eq('family_id', familyId)
-          .order('created_at', { ascending: false })
-          .limit(1),
+          .order('created_at', { ascending: false }),
         supabase
           .from('import_rules')
           .select('*')
@@ -228,24 +242,41 @@ function ImportPageContent({
       setRules(loadedRules)
       setRulesLoading(false)
 
-      const sessions = sessionsResult.data
-      if (sessions && sessions.length > 0) {
-        const s = mapDbSession(sessions[0] as Record<string, unknown>)
-        const { data: dbRows } = await supabase
-          .from('import_rows')
-          .select('*')
-          .eq('session_id', s.id)
-          .order('row_index', { ascending: true })
-
-        const importRows = (dbRows ?? []).map((r) => mapDbRow(r as Record<string, unknown>))
-        setSession(s)
-        setRows(importRows)
-        setHeaders(importRows[0] ? Object.keys(importRows[0].rawData) : [])
-      }
+      setSessions((sessionsResult.data ?? []).map((s) => mapDbSession(s as Record<string, unknown>)))
       setLoading(false)
     }
     load()
   }, [familyId])
+
+  // ─── Select session ─────────────────────────────────────────────────────────
+
+  async function handleSelectSession(sessionId: string) {
+    setBusy(true)
+    const { data: dbRows } = await supabase
+      .from('import_rows')
+      .select('*')
+      .eq('session_id', sessionId)
+      .order('row_index', { ascending: true })
+
+    const importRows = (dbRows ?? []).map((r) => mapDbRow(r as Record<string, unknown>))
+    setRows(importRows)
+    setHeaders(importRows[0] ? Object.keys(importRows[0].rawData) : [])
+    setNoHeaderWarning(false)
+    setDetectedDateFormat(null)
+    setActiveSessionId(sessionId)
+    setActiveTab('enriched')
+    setBusy(false)
+  }
+
+  function handleBackToList() {
+    setActiveSessionId(null)
+    setRows([])
+    setHeaders([])
+    setNoHeaderWarning(false)
+    setDetectedDateFormat(null)
+    setImportSource('none')
+    setActiveTab('enriched')
+  }
 
   // ─── Upload handler ─────────────────────────────────────────────────────────
 
@@ -328,8 +359,10 @@ function ImportPageContent({
       const newSession = mapDbSession(sessionData as Record<string, unknown>)
       const importRows = (inserted ?? []).map((r) => mapDbRow(r as Record<string, unknown>))
 
-      setSession(newSession)
+      setSessions((prev) => [newSession, ...prev])
+      setActiveSessionId(newSession.id)
       setHeaders(csvHeaders)
+      setImportSource('none')
       setActiveTab(noHeader ? 'advanced' : 'enriched')
 
       // Apply rules to freshly uploaded rows
@@ -413,8 +446,10 @@ function ImportPageContent({
       const newSession = mapDbSession(sessionData as Record<string, unknown>)
       const importRows = (inserted ?? []).map((r) => mapDbRow(r as Record<string, unknown>))
 
-      setSession(newSession)
+      setSessions((prev) => [newSession, ...prev])
+      setActiveSessionId(newSession.id)
       setHeaders(importRows[0] ? Object.keys(importRows[0].rawData) : [])
+      setImportSource('none')
       setActiveTab('enriched')
 
       if (rules.length > 0) {
@@ -454,7 +489,9 @@ function ImportPageContent({
           : `-${row.amount}`,
     }))
     setRows(updatedRows)
-    setSession((prev) => (prev ? { ...prev, negateAmount: negate } : null))
+    setSessions((prev) =>
+      prev.map((s) => (s.id === session.id ? { ...s, negateAmount: negate } : s))
+    )
     await supabase.from('import_sessions').update({ negate_amount: negate }).eq('id', session.id)
     updatedRows.forEach((row) => {
       supabase
@@ -480,10 +517,12 @@ function ImportPageContent({
       return { ...row, ...enriched }
     })
     setRows(updatedRows)
-    setSession((prev) =>
-      prev
-        ? { ...prev, columnMap: newColumnMap, dateFormat: newDateFormat, negateAmount: newNegate }
-        : null
+    setSessions((prev) =>
+      prev.map((s) =>
+        s.id === session.id
+          ? { ...s, columnMap: newColumnMap, dateFormat: newDateFormat, negateAmount: newNegate }
+          : s
+      )
     )
 
     // Persist session settings
@@ -624,20 +663,28 @@ function ImportPageContent({
     await supabase.from('import_rows').delete().eq('id', id)
   }
 
-  // ─── Delete import ──────────────────────────────────────────────────────────
+  // ─── Delete active import ───────────────────────────────────────────────────
 
   async function handleDeleteImport() {
     if (!session) return
     if (!confirm('Delete this entire import? All rows will be removed permanently.')) return
     setBusy(true)
     await supabase.from('import_sessions').delete().eq('id', session.id)
-    setSession(null)
+    setSessions((prev) => prev.filter((s) => s.id !== session.id))
+    setActiveSessionId(null)
     setRows([])
     setHeaders([])
     setNoHeaderWarning(false)
     setDetectedDateFormat(null)
-    setImportSource('none')
     setBusy(false)
+  }
+
+  // ─── Delete session from list ───────────────────────────────────────────────
+
+  async function handleDeleteSession(sessionId: string) {
+    if (!confirm('Delete this import? All rows will be removed permanently.')) return
+    await supabase.from('import_sessions').delete().eq('id', sessionId)
+    setSessions((prev) => prev.filter((s) => s.id !== sessionId))
   }
 
   // ─── Save rows ──────────────────────────────────────────────────────────────
@@ -679,7 +726,8 @@ function ImportPageContent({
 
       if (remaining.length === 0 && session) {
         await supabase.from('import_sessions').delete().eq('id', session.id)
-        setSession(null)
+        setSessions((prev) => prev.filter((s) => s.id !== session.id))
+        setActiveSessionId(null)
         setHeaders([])
         setNoHeaderWarning(false)
       }
@@ -710,133 +758,95 @@ function ImportPageContent({
     )
   }
 
-  const sessionActions = session ? (
-    <div className="flex items-center gap-2">
-      <button
-        onClick={handleDeleteImport}
-        disabled={busy}
-        className="px-3 py-1.5 rounded-md border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40 transition-colors"
-      >
-        Delete Import
-      </button>
-      {rules.length > 0 && (
+  // ── Active session view ──────────────────────────────────────────────────────
+
+  if (session) {
+    const tabs = session.source === 'api' ? TABS_API : TABS_CSV
+
+    const sessionActions = (
+      <div className="flex items-center gap-2">
         <button
-          onClick={() => {
-            const { rows: enriched, matchedRules } = applyRulesToRows(rows, rules, {
-              skipIfCategorized: false,
-            })
-            setAppliedRuleIds((prev) => ({ ...prev, ...matchedRules }))
-            enriched.forEach((row, i) => {
-              if (row !== rows[i])
-                handleRowChange(row.id, {
-                  categoryId: row.categoryId,
-                  tags: row.tags,
-                  description: row.description,
-                })
-            })
-          }}
+          onClick={handleDeleteImport}
           disabled={busy}
-          className="px-3 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-40 transition-colors"
+          className="px-3 py-1.5 rounded-md border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 text-sm hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-40 transition-colors"
         >
-          Apply rules
+          Delete Import
         </button>
-      )}
-      <button
-        onClick={() => saveRows(rows.filter((r) => r.selected))}
-        disabled={busy || selectedCount === 0}
-        className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
-      >
-        Save Selected ({selectedCount})
-      </button>
-      <button
-        onClick={() => saveRows(rows)}
-        disabled={busy || rows.length === 0}
-        className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
-      >
-        Save All ({rows.length})
-      </button>
-    </div>
-  ) : undefined
-
-  const tabs = session?.source === 'api' ? TABS_API : TABS_CSV
-
-  const noSessionSubtitle =
-    importSource === 'api'
-      ? 'Connect to Up Bank to import transactions'
-      : importSource === 'csv'
-        ? 'Upload a CSV file to import transactions'
-        : 'Choose how to import your transactions'
-
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title="Import Data"
-        subtitle={
-          session
-            ? `${session.filename ?? 'Import'} — ${rows.length} row${rows.length !== 1 ? 's' : ''} remaining`
-            : noSessionSubtitle
-        }
-        actions={sessionActions}
-      />
-
-      {error && (
-        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-300">
-          {error}
+        {rules.length > 0 && (
           <button
-            onClick={() => setError(null)}
-            className="ml-3 text-red-500 hover:text-red-700 dark:hover:text-red-300"
+            onClick={() => {
+              const { rows: enriched, matchedRules } = applyRulesToRows(rows, rules, {
+                skipIfCategorized: false,
+              })
+              setAppliedRuleIds((prev) => ({ ...prev, ...matchedRules }))
+              enriched.forEach((row, i) => {
+                if (row !== rows[i])
+                  handleRowChange(row.id, {
+                    categoryId: row.categoryId,
+                    tags: row.tags,
+                    description: row.description,
+                  })
+              })
+            }}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-md border border-indigo-200 dark:border-indigo-800 text-indigo-600 dark:text-indigo-400 text-sm hover:bg-indigo-50 dark:hover:bg-indigo-950/30 disabled:opacity-40 transition-colors"
           >
-            ×
+            Apply rules
           </button>
-        </div>
-      )}
+        )}
+        <button
+          onClick={() => saveRows(rows.filter((r) => r.selected))}
+          disabled={busy || selectedCount === 0}
+          className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+        >
+          Save Selected ({selectedCount})
+        </button>
+        <button
+          onClick={() => saveRows(rows)}
+          disabled={busy || rows.length === 0}
+          className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+        >
+          Save All ({rows.length})
+        </button>
+      </div>
+    )
 
-      {!session ? (
-        importSource === 'none' ? (
-          <ImportSourcePicker
-            busy={busy}
-            onPickCsv={() => setImportSource('csv')}
-            onPickApi={() => setImportSource('api')}
-          />
-        ) : importSource === 'csv' ? (
-          <div className="max-w-lg space-y-4">
+    return (
+      <div className="space-y-6">
+        <PageHeader
+          title="Import Data"
+          subtitle={`${session.filename ?? 'Import'} — ${rows.length} row${rows.length !== 1 ? 's' : ''} remaining`}
+          actions={sessionActions}
+        />
+
+        {error && (
+          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+            {error}
             <button
-              onClick={() => setImportSource('none')}
-              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+              onClick={() => setError(null)}
+              className="ml-3 text-red-500 hover:text-red-700 dark:hover:text-red-300"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back
+              ×
             </button>
-            <ImportUploader onFileParsed={handleFileParsed} busy={busy} />
           </div>
-        ) : (
-          <div className="max-w-md space-y-4">
-            <button
-              onClick={() => setImportSource('none')}
-              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-              Back
-            </button>
-            <BankImporter busy={busy} onImported={handleBankImported} />
-          </div>
-        )
-      ) : (
+        )}
+
         <div className="space-y-4">
+          <button
+            onClick={handleBackToList}
+            className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={1.5}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+            All imports
+          </button>
+
           {noHeaderWarning && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-4 py-3 text-sm text-amber-800 dark:text-amber-200">
               No header row detected — columns have been auto-named (Column 1, Column 2, …). Use the{' '}
@@ -885,7 +895,7 @@ function ImportPageContent({
             />
           )}
 
-          {activeTab === 'advanced' && session && (
+          {activeTab === 'advanced' && (
             <>
               <SectionHeading>Import Settings</SectionHeading>
               {session.source === 'api' ? (
@@ -927,7 +937,173 @@ function ImportPageContent({
             </>
           )}
         </div>
+      </div>
+    )
+  }
+
+  // ── New import flow (source picker / uploader / API) ─────────────────────────
+
+  if (importSource !== 'none') {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Import Data" subtitle="Import transactions from a file or bank API" />
+
+        {error && (
+          <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+            {error}
+            <button
+              onClick={() => setError(null)}
+              className="ml-3 text-red-500 hover:text-red-700 dark:hover:text-red-300"
+            >
+              ×
+            </button>
+          </div>
+        )}
+
+        {importSource === 'picker' ? (
+          <div className="space-y-4">
+            <button
+              onClick={() => setImportSource('none')}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back
+            </button>
+            <ImportSourcePicker
+              busy={busy}
+              onPickCsv={() => setImportSource('csv')}
+              onPickApi={() => setImportSource('api')}
+            />
+          </div>
+        ) : importSource === 'csv' ? (
+          <div className="max-w-lg space-y-4">
+            <button
+              onClick={() => setImportSource('picker')}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back
+            </button>
+            <ImportUploader onFileParsed={handleFileParsed} busy={busy} />
+          </div>
+        ) : (
+          <div className="max-w-md space-y-4">
+            <button
+              onClick={() => setImportSource('picker')}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back
+            </button>
+            <BankImporter busy={busy} onImported={handleBankImported} />
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  // ── Session list / source picker ─────────────────────────────────────────────
+
+  if (sessions.length === 0) {
+    return (
+      <div className="space-y-6">
+        <PageHeader title="Import Data" subtitle="Choose how to import your transactions" />
+        <ImportSourcePicker
+          busy={busy}
+          onPickCsv={() => setImportSource('csv')}
+          onPickApi={() => setImportSource('api')}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Import Data"
+        subtitle={`${sessions.length} import${sessions.length !== 1 ? 's' : ''} in progress`}
+        actions={
+          <button
+            onClick={() => setImportSource('picker')}
+            disabled={busy}
+            className="px-3 py-1.5 rounded-md bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700 disabled:opacity-40 transition-colors"
+          >
+            New Import
+          </button>
+        }
+      />
+
+      {error && (
+        <div className="rounded-lg border border-red-200 dark:border-red-800 bg-red-50 dark:bg-red-950/30 px-4 py-3 text-sm text-red-700 dark:text-red-300">
+          {error}
+          <button
+            onClick={() => setError(null)}
+            className="ml-3 text-red-500 hover:text-red-700 dark:hover:text-red-300"
+          >
+            ×
+          </button>
+        </div>
       )}
+
+      <div className="space-y-3 max-w-2xl">
+        {sessions.map((s) => (
+          <div
+            key={s.id}
+            className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-4 py-3"
+          >
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                {s.filename ?? (s.source === 'api' ? 'API Import' : 'Import')}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                {s.rowCount} row{s.rowCount !== 1 ? 's' : ''} · {formatSessionDate(s.createdAt)}
+                {s.source === 'api' && (
+                  <span className="ml-2 inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-950/40 px-1.5 py-0.5 text-xs text-indigo-600 dark:text-indigo-400">
+                    API
+                  </span>
+                )}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 ml-4 shrink-0">
+              <button
+                onClick={() => handleDeleteSession(s.id)}
+                disabled={busy}
+                className="text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 disabled:opacity-40 transition-colors"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => handleSelectSession(s.id)}
+                disabled={busy}
+                className="px-3 py-1.5 rounded-md border border-gray-300 dark:border-gray-700 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 transition-colors"
+              >
+                Open
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

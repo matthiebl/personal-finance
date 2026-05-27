@@ -1,38 +1,52 @@
 import Papa from 'papaparse'
 import type { ImportColumnMap, ImportRow } from './types'
 
+function rowLooksLikeData(row: string[]): boolean {
+  return row.some((val) => {
+    const trimmed = val.trim()
+    if (!trimmed) return false
+    // Matches common date formats: 2024-01-01, 01/01/2024, etc.
+    if (/^\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}$/.test(trimmed)) return true
+    // Matches "15 Jan 2025" style dates
+    if (/^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/.test(trimmed)) return true
+    // Matches plain numbers/amounts (optional leading $, -, commas)
+    const stripped = trimmed.replace(/[$,\s]/g, '')
+    if (/^-?\d+(\.\d+)?$/.test(stripped)) return true
+    return false
+  })
+}
+
 export function parseCsvText(text: string): {
   headers: string[]
   rows: Record<string, string>[]
   errors: string[]
   noHeaderRow: boolean
 } {
-  const result = Papa.parse<Record<string, string>>(text, {
-    header: true,
-    skipEmptyLines: true,
-    transformHeader: (h) => h.trim(),
-  })
+  const arrayResult = Papa.parse<string[]>(text, { skipEmptyLines: true })
+  const allRows = arrayResult.data
+  const errors = arrayResult.errors.map((e) => e.message)
 
-  const headers = (result.meta.fields ?? []).filter((h) => h !== '')
-  const errors = result.errors.map((e) => e.message)
+  if (allRows.length === 0) {
+    return { headers: [], rows: [], errors, noHeaderRow: false }
+  }
 
-  if (headers.length === 0) {
-    // No header row — re-parse as array and auto-name columns
-    const arrayResult = Papa.parse<string[]>(text, { skipEmptyLines: true })
-    const firstRow = arrayResult.data[0] ?? []
+  const firstRow = allRows[0]
+
+  if (firstRow.length === 0 || rowLooksLikeData(firstRow)) {
+    // No header row — auto-name columns and include first row as data
     const autoHeaders = firstRow.map((_, i) => `Column ${i + 1}`)
-    const rows = arrayResult.data.map((row) =>
-      Object.fromEntries(autoHeaders.map((h, i) => [h, row[i] ?? '']))
+    const rows = allRows.map((row) =>
+      Object.fromEntries(autoHeaders.map((h, i) => [h, (row[i] ?? '').trim()]))
     )
     return { headers: autoHeaders, rows, errors, noHeaderRow: true }
   }
 
-  return {
-    headers,
-    rows: result.data,
-    errors,
-    noHeaderRow: false,
-  }
+  // First row is headers
+  const headers = firstRow.map((h) => h.trim()).filter((h) => h !== '')
+  const rows = allRows.slice(1).map((row) =>
+    Object.fromEntries(headers.map((h, i) => [h, (row[i] ?? '').trim()]))
+  )
+  return { headers, rows, errors, noHeaderRow: false }
 }
 
 const DATE_PATTERNS = ['date', 'time', 'posted', 'transaction date', 'value date', 'effective date']
