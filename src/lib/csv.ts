@@ -6,7 +6,7 @@ function rowLooksLikeData(row: string[]): boolean {
     const trimmed = val.trim()
     if (!trimmed) return false
     // Matches common date formats: 2024-01-01, 01/01/2024, etc.
-    if (/^\d{1,4}[\/\-]\d{1,2}[\/\-]\d{1,4}$/.test(trimmed)) return true
+    if (/^\d{1,4}[/-]\d{1,2}[/-]\d{1,4}$/.test(trimmed)) return true
     // Matches "15 Jan 2025" style dates
     if (/^\d{1,2}\s+[A-Za-z]{3}\s+\d{4}$/.test(trimmed)) return true
     // Matches plain numbers/amounts (optional leading $, -, commas)
@@ -43,9 +43,9 @@ export function parseCsvText(text: string): {
 
   // First row is headers
   const headers = firstRow.map((h) => h.trim()).filter((h) => h !== '')
-  const rows = allRows.slice(1).map((row) =>
-    Object.fromEntries(headers.map((h, i) => [h, (row[i] ?? '').trim()]))
-  )
+  const rows = allRows
+    .slice(1)
+    .map((row) => Object.fromEntries(headers.map((h, i) => [h, (row[i] ?? '').trim()])))
   return { headers, rows, errors, noHeaderRow: false }
 }
 

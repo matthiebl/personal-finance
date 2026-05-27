@@ -242,7 +242,9 @@ function ImportPageContent({
       setRules(loadedRules)
       setRulesLoading(false)
 
-      setSessions((sessionsResult.data ?? []).map((s) => mapDbSession(s as Record<string, unknown>)))
+      setSessions(
+        (sessionsResult.data ?? []).map((s) => mapDbSession(s as Record<string, unknown>))
+      )
       setLoading(false)
     }
     load()
