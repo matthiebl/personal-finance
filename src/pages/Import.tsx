@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AdvancedTab } from '../components/import/AdvancedTab'
+import { ApiRawDataTab } from '../components/import/ApiRawDataTab'
+import { BankImporter } from '../components/import/BankImporter'
 import { EnrichedDataTab } from '../components/import/EnrichedDataTab'
+import { ImportSourcePicker } from '../components/import/ImportSourcePicker'
 import { ImportUploader } from '../components/import/ImportUploader'
 import { RawDataTab } from '../components/import/RawDataTab'
 import { RulesTab } from '../components/import/RulesTab'
@@ -18,6 +21,8 @@ import {
 import { supabase } from '../lib/supabase'
 import type { DbImportRule } from '../lib/supabase'
 import { applyRulesToRow, applyRulesToRows } from '../lib/rules'
+import type { BankProvider, BankTransaction } from '../lib/bankProviders'
+import { bankTxToImportRowData } from '../lib/bankProviders'
 import type { TxSuggestion } from '../components/inputs'
 import type {
   BudgetCategory,
@@ -30,8 +35,16 @@ import type {
 } from '../lib/types'
 
 type ImportTab = 'enriched' | 'raw' | 'advanced' | 'rules'
+type ImportSource = 'none' | 'csv' | 'api'
 
-const TABS: { id: ImportTab; label: string }[] = [
+const TABS_CSV: { id: ImportTab; label: string }[] = [
+  { id: 'enriched', label: 'Enriched' },
+  { id: 'raw', label: 'Raw Data' },
+  { id: 'advanced', label: 'Advanced' },
+  { id: 'rules', label: 'Rules' },
+]
+
+const TABS_API: { id: ImportTab; label: string }[] = [
   { id: 'enriched', label: 'Enriched' },
   { id: 'raw', label: 'Raw Data' },
   { id: 'advanced', label: 'Advanced' },
@@ -185,6 +198,7 @@ function ImportPageContent({
   const [rulesLoading, setRulesLoading] = useState(true)
   const [appliedRuleIds, setAppliedRuleIds] = useState<Record<string, string>>({})
 
+  const [importSource, setImportSource] = useState<ImportSource>('none')
   const [activeTab, setActiveTab] = useState<ImportTab>('enriched')
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
@@ -341,6 +355,114 @@ function ImportPageContent({
     } finally {
       setBusy(false)
     }
+  }
+
+  // ─── Bank API import handler ────────────────────────────────────────────────
+
+  async function handleBankImported(transactions: BankTransaction[], provider: BankProvider) {
+    if (transactions.length === 0) return
+    setBusy(true)
+    setError(null)
+
+    try {
+      const { data: sessionData, error: sessionErr } = await supabase
+        .from('import_sessions')
+        .insert({
+          family_id: familyId,
+          source: 'api',
+          filename: provider.label,
+          row_count: transactions.length,
+          column_map: {},
+          date_format: '',
+          negate_amount: false,
+        })
+        .select()
+        .single()
+
+      if (sessionErr) throw new Error(sessionErr.message)
+
+      const dbRowsToInsert = transactions.map((tx, i) => {
+        const mapped = bankTxToImportRowData(tx)
+        return {
+          session_id: sessionData.id,
+          family_id: familyId,
+          row_index: i,
+          raw_data: mapped.rawData,
+          description: mapped.description,
+          amount: mapped.amount,
+          category_id: '',
+          tags: '',
+          month_override: null,
+          parsed_date: mapped.parsedDate,
+        }
+      })
+
+      for (let i = 0; i < dbRowsToInsert.length; i += 500) {
+        const { error: insertErr } = await supabase
+          .from('import_rows')
+          .insert(dbRowsToInsert.slice(i, i + 500))
+        if (insertErr) throw new Error(insertErr.message)
+      }
+
+      const { data: inserted } = await supabase
+        .from('import_rows')
+        .select('*')
+        .eq('session_id', sessionData.id)
+        .order('row_index', { ascending: true })
+
+      const newSession = mapDbSession(sessionData as Record<string, unknown>)
+      const importRows = (inserted ?? []).map((r) => mapDbRow(r as Record<string, unknown>))
+
+      setSession(newSession)
+      setHeaders(importRows[0] ? Object.keys(importRows[0].rawData) : [])
+      setActiveTab('enriched')
+
+      if (rules.length > 0) {
+        const { rows: enriched, matchedRules } = applyRulesToRows(importRows, rules, {
+          skipIfCategorized: true,
+        })
+        setAppliedRuleIds(matchedRules)
+        enriched.forEach((row, i) => {
+          if (row === importRows[i]) return
+          supabase
+            .from('import_rows')
+            .update({ category_id: row.categoryId, tags: row.tags, description: row.description })
+            .eq('id', row.id)
+            .then(() => {})
+        })
+        setRows(enriched)
+      } else {
+        setRows(importRows)
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Import failed')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  // ─── API negate toggle ──────────────────────────────────────────────────────
+
+  async function handleApiNegateChange(negate: boolean) {
+    if (!session || session.negateAmount === negate) return
+    const updatedRows = rows.map((row) => ({
+      ...row,
+      amount: row.amount.startsWith('-')
+        ? row.amount.slice(1)
+        : row.amount === '0.00'
+          ? row.amount
+          : `-${row.amount}`,
+    }))
+    setRows(updatedRows)
+    setSession((prev) => (prev ? { ...prev, negateAmount: negate } : null))
+    await supabase.from('import_sessions').update({ negate_amount: negate }).eq('id', session.id)
+    updatedRows.forEach((row) => {
+      supabase
+        .from('import_rows')
+        .update({ amount: row.amount })
+        .eq('id', row.id)
+        .then(() => {})
+    })
   }
 
   // ─── Advanced tab changes ───────────────────────────────────────────────────
@@ -514,6 +636,7 @@ function ImportPageContent({
     setHeaders([])
     setNoHeaderWarning(false)
     setDetectedDateFormat(null)
+    setImportSource('none')
     setBusy(false)
   }
 
@@ -635,6 +758,15 @@ function ImportPageContent({
     </div>
   ) : undefined
 
+  const tabs = session?.source === 'api' ? TABS_API : TABS_CSV
+
+  const noSessionSubtitle =
+    importSource === 'api'
+      ? 'Connect to Up Bank to import transactions'
+      : importSource === 'csv'
+        ? 'Upload a CSV file to import transactions'
+        : 'Choose how to import your transactions'
+
   return (
     <div className="space-y-6">
       <PageHeader
@@ -642,7 +774,7 @@ function ImportPageContent({
         subtitle={
           session
             ? `${session.filename ?? 'Import'} — ${rows.length} row${rows.length !== 1 ? 's' : ''} remaining`
-            : 'Import transactions from a CSV file'
+            : noSessionSubtitle
         }
         actions={sessionActions}
       />
@@ -660,9 +792,49 @@ function ImportPageContent({
       )}
 
       {!session ? (
-        <div className="max-w-lg">
-          <ImportUploader onFileParsed={handleFileParsed} busy={busy} />
-        </div>
+        importSource === 'none' ? (
+          <ImportSourcePicker
+            busy={busy}
+            onPickCsv={() => setImportSource('csv')}
+            onPickApi={() => setImportSource('api')}
+          />
+        ) : importSource === 'csv' ? (
+          <div className="max-w-lg space-y-4">
+            <button
+              onClick={() => setImportSource('none')}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back
+            </button>
+            <ImportUploader onFileParsed={handleFileParsed} busy={busy} />
+          </div>
+        ) : (
+          <div className="max-w-md space-y-4">
+            <button
+              onClick={() => setImportSource('none')}
+              className="flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M15 19l-7-7 7-7"
+                />
+              </svg>
+              Back
+            </button>
+            <BankImporter busy={busy} onImported={handleBankImported} />
+          </div>
+        )
       ) : (
         <div className="space-y-4">
           {noHeaderWarning && (
@@ -675,11 +847,14 @@ function ImportPageContent({
             </div>
           )}
 
-          <TabBar tabs={TABS} active={activeTab} onChange={setActiveTab} />
+          <TabBar tabs={tabs} active={activeTab} onChange={setActiveTab} />
 
-          {activeTab === 'raw' && (
-            <RawDataTab rows={rows} headers={headers} onDeleteRow={handleDeleteRow} />
-          )}
+          {activeTab === 'raw' &&
+            (session?.source === 'api' ? (
+              <ApiRawDataTab rows={rows} onDeleteRow={handleDeleteRow} />
+            ) : (
+              <RawDataTab rows={rows} headers={headers} onDeleteRow={handleDeleteRow} />
+            ))}
 
           {activeTab === 'enriched' && (
             <EnrichedDataTab
@@ -713,26 +888,42 @@ function ImportPageContent({
           {activeTab === 'advanced' && session && (
             <>
               <SectionHeading>Import Settings</SectionHeading>
-              <AdvancedTab
-                headers={headers}
-                columnMap={session.columnMap}
-                dateFormat={session.dateFormat}
-                negateAmount={session.negateAmount}
-                detectedDateFormat={detectedDateFormat}
-                onColumnMapChange={(patch) =>
-                  handleAdvancedChange(
-                    { ...session.columnMap, ...patch },
-                    session.dateFormat,
-                    session.negateAmount
-                  )
-                }
-                onDateFormatChange={(fmt) =>
-                  handleAdvancedChange(session.columnMap, fmt, session.negateAmount)
-                }
-                onNegateAmountChange={(negate) =>
-                  handleAdvancedChange(session.columnMap, session.dateFormat, negate)
-                }
-              />
+              {session.source === 'api' ? (
+                <div className="space-y-2 max-w-lg">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={session.negateAmount}
+                      onChange={(e) => handleApiNegateChange(e.target.checked)}
+                      className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <span className="text-sm text-gray-700 dark:text-gray-300">
+                      Negate amounts (bank shows expenses as positive numbers)
+                    </span>
+                  </label>
+                </div>
+              ) : (
+                <AdvancedTab
+                  headers={headers}
+                  columnMap={session.columnMap}
+                  dateFormat={session.dateFormat}
+                  negateAmount={session.negateAmount}
+                  detectedDateFormat={detectedDateFormat}
+                  onColumnMapChange={(patch) =>
+                    handleAdvancedChange(
+                      { ...session.columnMap, ...patch },
+                      session.dateFormat,
+                      session.negateAmount
+                    )
+                  }
+                  onDateFormatChange={(fmt) =>
+                    handleAdvancedChange(session.columnMap, fmt, session.negateAmount)
+                  }
+                  onNegateAmountChange={(negate) =>
+                    handleAdvancedChange(session.columnMap, session.dateFormat, negate)
+                  }
+                />
+              )}
             </>
           )}
         </div>

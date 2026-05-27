@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { CashFlowSankeyChart, DonutChart, ExpandableChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
@@ -7,6 +7,7 @@ import type { TxSuggestion } from '../components/inputs'
 import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
 import { MonthSelector, PageHeader, SectionHeading, YearSelector } from '../components/layout'
 import { useAppData } from '../context/useAppData'
+import { useAuth } from '../context/useAuth'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
 import type { BudgetCategory, ExpenseType, Transaction } from '../lib/types'
 
@@ -217,6 +218,7 @@ function TransactionTable({
   transactions,
   sections,
   suggestions,
+  importHref,
   onUpdate,
   onApplySuggestion,
   onAdd,
@@ -226,6 +228,7 @@ function TransactionTable({
   transactions: Transaction[]
   sections: { label: string; rows: BudgetRow[] }[]
   suggestions: TxSuggestion[]
+  importHref: string | null
   onUpdate: (id: string, field: keyof Transaction, value: string) => void
   onApplySuggestion: (
     id: string,
@@ -252,6 +255,14 @@ function TransactionTable({
           Transactions
         </p>
         <div className="flex items-center gap-1.5">
+          {importHref && (
+            <Link
+              to={importHref}
+              className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1 transition-colors"
+            >
+              Import
+            </Link>
+          )}
           <button
             onClick={onCondense}
             className="text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 border border-gray-200 dark:border-gray-700 rounded px-2.5 py-1 transition-colors"
@@ -490,6 +501,7 @@ function toRows(cats: BudgetCategory[], budgeted: Record<string, string>): Budge
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MonthlyData() {
+  const { user, family } = useAuth()
   const {
     data,
     updateCategory,
@@ -509,6 +521,15 @@ export default function MonthlyData() {
   const monthParamIdx = MONTHS.findIndex((m) => m.slice(0, 3).toLowerCase() === monthParam)
   const selectedMonthIdx = monthParamIdx !== -1 ? monthParamIdx : prevMonth.getMonth()
   const monthStr = String(selectedMonthIdx + 1).padStart(2, '0')
+  const importHref =
+    user && family
+      ? (() => {
+          const lastDay = new Date(parseInt(selectedYear), selectedMonthIdx + 1, 0).getDate()
+          const since = `${selectedYear}-${monthStr}-01`
+          const until = `${selectedYear}-${monthStr}-${String(lastDay).padStart(2, '0')}`
+          return `/import?since=${since}&until=${until}`
+        })()
+      : null
 
   function setYear(delta: number) {
     setSearchParams(
@@ -908,6 +929,7 @@ export default function MonthlyData() {
         transactions={transactions}
         sections={sections}
         suggestions={allTransactionSuggestions}
+        importHref={importHref}
         onUpdate={handleTxUpdate}
         onApplySuggestion={(id, patch) => updateTransaction(selectedYear, monthStr, id, patch)}
         onAdd={() => addTransaction(selectedYear, monthStr)}
