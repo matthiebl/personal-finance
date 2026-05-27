@@ -2,10 +2,6 @@
 
 ## High priority — wire up stubs to real data
 
-- [x] **CSV Import** - allow importing data from a csv
-- [ ] **Up Bank Import** - once authenticated allow importing data through Up API
-- [x] **Auto Categorise** - for authenticated users allow import to app transformation rules
-
 ## Medium priority — features that complete existing pages
 
 ## Lower priority — data and app quality
@@ -21,3 +17,6 @@
 - [x] **Debt Snowball** — make debt rows addable/removable/editable (balance, min payment, rate); implement real snowball and avalanche payoff calculations; show per-debt estimated payoff date
 - [x] **Debt Snowball payoff timeline chart** — bar or line chart showing remaining balance per debt over time under the selected strategy
 - [x] **Welcome page onboarding flow** — guide the user to set up budget categories and their first monthly budget before landing on an empty dashboard
+- [x] **CSV Import** - allow importing data from a csv
+- [x] **Up Bank Import** - once authenticated allow importing data through Up API
+- [x] **Auto Categorise** - for authenticated users allow import to app transformation rules
