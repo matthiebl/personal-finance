@@ -165,3 +165,67 @@ export function TabBar<T extends string>({
     </div>
   )
 }
+
+export function TagFilterBar({
+  tags,
+  selectedTags,
+  negated,
+  onToggleTag,
+  onToggleNegate,
+  onClearAll,
+}: {
+  tags: string[]
+  selectedTags: Set<string>
+  negated: boolean
+  onToggleTag: (tag: string) => void
+  onToggleNegate: () => void
+  onClearAll: () => void
+}) {
+  if (tags.length === 0) return null
+  const hasSelection = selectedTags.size > 0
+  return (
+    <div className="flex items-center gap-2 mb-6 flex-wrap">
+      <span className="text-xs font-medium text-gray-400 dark:text-gray-500 shrink-0">
+        View by tag:
+      </span>
+      <div className="flex flex-wrap gap-1.5">
+        <button
+          onClick={onClearAll}
+          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+            !hasSelection
+              ? 'bg-indigo-600 border-indigo-600 text-white'
+              : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-gray-400 dark:hover:border-gray-500'
+          }`}
+        >
+          All
+        </button>
+        {tags.map((tag) => (
+          <button
+            key={tag}
+            onClick={() => onToggleTag(tag)}
+            className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+              selectedTags.has(tag)
+                ? 'bg-indigo-600 border-indigo-600 text-white'
+                : 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700'
+            }`}
+          >
+            {tag}
+          </button>
+        ))}
+        <button
+          onClick={onToggleNegate}
+          disabled={!hasSelection}
+          className={`px-2.5 py-1 rounded-full text-xs border transition-colors ${
+            negated && hasSelection
+              ? 'bg-indigo-600 border-indigo-600 text-white'
+              : hasSelection
+                ? 'border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:border-indigo-300 dark:hover:border-indigo-700'
+                : 'border-gray-100 dark:border-gray-800 text-gray-300 dark:text-gray-700 cursor-not-allowed'
+          }`}
+        >
+          ≠ Negate
+        </button>
+      </div>
+    </div>
+  )
+}

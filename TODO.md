@@ -2,7 +2,11 @@
 
 ## High priority — wire up stubs to real data
 
+- [ ] **Transaction List/Filtering** - provide a new view to look through all transaction, filter, search, update, etc.
+
 ## Medium priority — features that complete existing pages
+
+- [ ] **Copy Budget Amounts** Copy budget amounts from each category, or use a budget template
 
 ## Lower priority — data and app quality
 
@@ -20,3 +24,4 @@
 - [x] **CSV Import** - allow importing data from a csv
 - [x] **Up Bank Import** - once authenticated allow importing data through Up API
 - [x] **Auto Categorise** - for authenticated users allow import to app transformation rules
+- [x] **Tag Views** - on annual dashboard and monthly dashboards allow filtering transactions to "tags present" and "tags not present"

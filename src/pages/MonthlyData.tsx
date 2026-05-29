@@ -1,11 +1,17 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { CashFlowSankeyChart, DonutChart, ExpandableChart } from '../components/charts'
 import { HeroStats } from '../components/hero'
 import type { TxSuggestion } from '../components/inputs'
 import { CurrencyInput, DescriptionAutocomplete, TextInput } from '../components/inputs'
-import { MonthSelector, PageHeader, SectionHeading, YearSelector } from '../components/layout'
+import {
+  MonthSelector,
+  PageHeader,
+  SectionHeading,
+  TagFilterBar,
+  YearSelector,
+} from '../components/layout'
 import { useAppData } from '../context/useAppData'
 import { useAuth } from '../context/useAuth'
 import { fmt, fmtAxis, fmtCents } from '../lib/finance'
@@ -498,6 +504,26 @@ function toRows(cats: BudgetCategory[], budgeted: Record<string, string>): Budge
   }))
 }
 
+// ─── Tag filter helper ────────────────────────────────────────────────────────
+
+function matchesTagFilter(tx: Transaction, selectedTags: Set<string>, negated: boolean): boolean {
+  if (selectedTags.size === 0) return true
+  const txTags = (tx.tags ?? '').split(/\s+/).filter(Boolean)
+  if (negated) {
+    if (selectedTags.has('(no tag)') && txTags.length === 0) return false
+    return !txTags.some((t) => selectedTags.has(t))
+  } else {
+    for (const tag of selectedTags) {
+      if (tag === '(no tag)') {
+        if (txTags.length > 0) return false
+      } else {
+        if (!txTags.includes(tag)) return false
+      }
+    }
+    return true
+  }
+}
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 
 export default function MonthlyData() {
@@ -550,6 +576,9 @@ export default function MonthlyData() {
     )
   }
 
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [negated, setNegated] = useState(false)
+
   const budgetMonth = data.budget.years[selectedYear]?.months[monthStr] ?? EMPTY_MONTH
 
   // Sort categories by order
@@ -593,6 +622,21 @@ export default function MonthlyData() {
 
   const transactions = budgetMonth.transactions
 
+  const allTagsInMonth = useMemo(() => {
+    const set = new Set<string>()
+    for (const tx of transactions) {
+      const txTags = (tx.tags ?? '').split(/\s+/).filter(Boolean)
+      if (txTags.length === 0) set.add('(no tag)')
+      else for (const t of txTags) set.add(t)
+    }
+    return [...set].sort()
+  }, [transactions])
+
+  const filteredTransactions = useMemo(() => {
+    if (selectedTags.size === 0) return transactions
+    return transactions.filter((tx) => matchesTagFilter(tx, selectedTags, negated))
+  }, [transactions, selectedTags, negated])
+
   function handleTxUpdate(id: string, field: keyof Transaction, value: string) {
     updateTransaction(selectedYear, monthStr, id, { [field]: value })
   }
@@ -625,13 +669,13 @@ export default function MonthlyData() {
 
   const actuals = useMemo(() => {
     const map: Record<string, number> = {}
-    for (const tx of transactions) {
+    for (const tx of filteredTransactions) {
       if (tx.categoryId) {
         map[tx.categoryId] = (map[tx.categoryId] ?? 0) + (parseFloat(tx.amount) || 0)
       }
     }
     return map
-  }, [transactions])
+  }, [filteredTransactions])
 
   const totalIncomeActual = useMemo(
     () => incomeRows.reduce((s, r) => s + (actuals[r.id] ?? 0), 0),
@@ -720,6 +764,19 @@ export default function MonthlyData() {
     { label: 'Savings & Investments', rows: savingsRows },
   ]
 
+  function handleToggleTag(tag: string) {
+    setSelectedTags((prev) => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
+  function handleClearAll() {
+    setSelectedTags(new Set())
+    setNegated(false)
+  }
+
   return (
     <div className="max-w-384">
       <PageHeader
@@ -741,6 +798,15 @@ export default function MonthlyData() {
           <MonthSelector selectedIdx={selectedMonthIdx} onChange={setMonthIdx} />
         </div>
       </PageHeader>
+
+      <TagFilterBar
+        tags={allTagsInMonth}
+        selectedTags={selectedTags}
+        negated={negated}
+        onToggleTag={handleToggleTag}
+        onToggleNegate={() => setNegated((n) => !n)}
+        onClearAll={handleClearAll}
+      />
 
       {/* Hero row 1 */}
       <HeroStats
@@ -926,7 +992,7 @@ export default function MonthlyData() {
 
       {/* Transactions */}
       <TransactionTable
-        transactions={transactions}
+        transactions={filteredTransactions}
         sections={sections}
         suggestions={allTransactionSuggestions}
         importHref={importHref}

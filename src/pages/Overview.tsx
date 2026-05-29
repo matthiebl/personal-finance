@@ -9,7 +9,13 @@ import {
   MonthlyTrendChart,
 } from '../components/charts'
 import { HeroStats } from '../components/hero'
-import { PageHeader, SectionHeading, ViewToggle, YearSelector } from '../components/layout'
+import {
+  PageHeader,
+  SectionHeading,
+  TagFilterBar,
+  ViewToggle,
+  YearSelector,
+} from '../components/layout'
 import type { AnnualSectionConfig, AnnualSummaryRow, AnnualTableRow } from '../components/table'
 import { AnnualBreakdownTable } from '../components/table'
 import { useAppData } from '../context/useAppData'
@@ -435,10 +441,30 @@ function CategoryDeepDive({
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function matchesTagFilter(tx: Transaction, selectedTags: Set<string>, negated: boolean): boolean {
+  if (selectedTags.size === 0) return true
+  const txTags = (tx.tags ?? '').split(/\s+/).filter(Boolean)
+  if (negated) {
+    if (selectedTags.has('(no tag)') && txTags.length === 0) return false
+    return !txTags.some((t) => selectedTags.has(t))
+  } else {
+    for (const tag of selectedTags) {
+      if (tag === '(no tag)') {
+        if (txTags.length > 0) return false
+      } else {
+        if (!txTags.includes(tag)) return false
+      }
+    }
+    return true
+  }
+}
+
 export default function Overview() {
   const { data } = useAppData()
   const { selectedYear, viewMode, setYear, setViewMode } = useAnnualPicker()
   const [deepDiveCategory, setDeepDiveCategory] = useState<DeepDiveCategory | null>(null)
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(new Set())
+  const [negated, setNegated] = useState(false)
 
   // Sorted categories
   const sortedCats = useMemo(
@@ -482,6 +508,21 @@ export default function Overview() {
     }))
   }, [viewMode, selectedYear])
 
+  // All unique tags across the active view (for the filter bar)
+  const allTagsInView = useMemo(() => {
+    const set = new Set<string>()
+    for (const { year, monthKey } of activeMonthSlots) {
+      const bm = (data.budget.years[year] ?? { months: {} }).months[monthKey]
+      if (!bm) continue
+      for (const tx of bm.transactions) {
+        const txTags = (tx.tags ?? '').split(/\s+/).filter(Boolean)
+        if (txTags.length === 0) set.add('(no tag)')
+        else for (const t of txTags) set.add(t)
+      }
+    }
+    return [...set].sort()
+  }, [activeMonthSlots, data.budget.years])
+
   // Monthly totals — array indexed 0-11 by slot, each entry is catId -> amount
   const monthlyActuals = useMemo(() => {
     return activeMonthSlots.map(({ year, monthKey }) => {
@@ -489,13 +530,14 @@ export default function Overview() {
       const map: Record<string, number> = {}
       if (bm) {
         for (const tx of bm.transactions) {
-          if (tx.categoryId)
-            map[tx.categoryId] = (map[tx.categoryId] ?? 0) + (parseFloat(tx.amount) || 0)
+          if (!tx.categoryId) continue
+          if (!matchesTagFilter(tx, selectedTags, negated)) continue
+          map[tx.categoryId] = (map[tx.categoryId] ?? 0) + (parseFloat(tx.amount) || 0)
         }
       }
       return map
     })
-  }, [activeMonthSlots, data.budget.years])
+  }, [activeMonthSlots, data.budget.years, selectedTags, negated])
 
   // Annual totals per category
   const annualCategoryTotals = useMemo(() => {
@@ -633,6 +675,19 @@ export default function Overview() {
     return { months }
   }, [viewMode, selectedYear, activeMonthSlots, data.budget.years])
 
+  function handleToggleTag(tag: string) {
+    setSelectedTags((prev) => {
+      const next = new Set(prev)
+      if (next.has(tag)) next.delete(tag)
+      else next.add(tag)
+      return next
+    })
+  }
+  function handleClearAll() {
+    setSelectedTags(new Set())
+    setNegated(false)
+  }
+
   function handleRowClick(categoryId: string) {
     const cat = sortedCats.find((c) => c.id === categoryId)
     if (!cat) return
@@ -663,6 +718,15 @@ export default function Overview() {
             {viewMode === 'year' && <YearSelector year={selectedYear} onChange={setYear} />}
           </div>
         }
+      />
+
+      <TagFilterBar
+        tags={allTagsInView}
+        selectedTags={selectedTags}
+        negated={negated}
+        onToggleTag={handleToggleTag}
+        onToggleNegate={() => setNegated((n) => !n)}
+        onClearAll={handleClearAll}
       />
 
       {/* Hero stats */}
