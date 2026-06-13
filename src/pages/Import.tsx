@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AdvancedTab } from '../components/import/AdvancedTab'
 import { ApiRawDataTab } from '../components/import/ApiRawDataTab'
@@ -550,7 +550,7 @@ function ImportPageContent({
     latestRowsRef.current = rows
   }, [rows])
 
-  function handleRowChange(id: string, patch: Partial<ImportRow>) {
+  const handleRowChange = useCallback((id: string, patch: Partial<ImportRow>) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
 
     // Debounce Supabase write — skip if patch is UI-only (selected)
@@ -580,35 +580,33 @@ function ImportPageContent({
     }, 300)
 
     rowSaveTimers.current.set(id, timer)
-  }
+  }, [])
 
   // ─── Selection helpers ──────────────────────────────────────────────────────
 
-  const selectedCount = rows.filter((r) => r.selected).length
+  const selectedCount = useMemo(() => rows.filter((r) => r.selected).length, [rows])
 
-  function handleToggleSelected(id: string) {
+  const handleToggleSelected = useCallback((id: string) => {
     setRows((prev) => prev.map((r) => (r.id === id ? { ...r, selected: !r.selected } : r)))
-  }
+  }, [])
 
-  function handleToggleSelectAll() {
-    const filtered = getFilteredRows()
-    const visibleIds = new Set(filtered.map((r) => r.id))
-    const allSelected = filtered.every((r) => r.selected)
-    setRows((prev) =>
-      prev.map((r) => (visibleIds.has(r.id) ? { ...r, selected: !allSelected } : r))
-    )
-  }
+  const handleToggleSelectAll = useCallback(() => {
+    setRows((prev) => {
+      const q = searchQuery.trim().toLowerCase()
+      const filtered = q
+        ? prev.filter(
+            (r) =>
+              r.description.toLowerCase().includes(q) ||
+              r.tags.toLowerCase().includes(q) ||
+              r.amount.includes(q),
+          )
+        : prev
+      const visibleIds = new Set(filtered.map((r) => r.id))
+      const allSelected = filtered.length > 0 && filtered.every((r) => r.selected)
+      return prev.map((r) => (visibleIds.has(r.id) ? { ...r, selected: !allSelected } : r))
+    })
+  }, [searchQuery])
 
-  function getFilteredRows() {
-    if (!searchQuery.trim()) return rows
-    const q = searchQuery.toLowerCase()
-    return rows.filter(
-      (r) =>
-        r.description.toLowerCase().includes(q) ||
-        r.tags.toLowerCase().includes(q) ||
-        r.amount.includes(q)
-    )
-  }
 
   // ─── Rules CRUD ─────────────────────────────────────────────────────────────
 
